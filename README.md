@@ -12,8 +12,8 @@ npm install ai-input-react
 
 Hostitelský projekt musí mít:
 
-1. **React 18+** (nebo 19)
-2. **Tailwind CSS** nakonfigurovaný
+1. **React 19+** (kompatibilní i s React 18)
+2. **Tailwind CSS 4+** nakonfigurovaný
 3. **shadcn/ui** inicializovaný s tímto presetem:
 
 ```bash
