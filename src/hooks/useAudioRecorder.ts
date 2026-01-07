@@ -1,15 +1,40 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { UseAudioRecorderOptions, UseAudioRecorderReturn } from '../types'
 
+const DEFAULT_OPTIONS: UseAudioRecorderOptions = {
+    maxDurationMs: 60000, // 1 minute
+    mimeTypes: ['audio/webm', 'audio/mp4', 'audio/ogg', 'audio/wav'],
+}
+
 /**
- * Hook for audio recording using Web APIs
- * Uses navigator.mediaDevices and MediaRecorder
+ * Get the best supported MIME type for MediaRecorder
+ */
+function getSupportedMimeType(preferredTypes: string[]): string | null {
+    if (typeof MediaRecorder === 'undefined') {
+        return null
+    }
+
+    for (const mimeType of preferredTypes) {
+        if (MediaRecorder.isTypeSupported(mimeType)) {
+            return mimeType
+        }
+    }
+
+    // Fallback to default
+    return ''
+}
+
+/**
+ * Hook for audio recording using Web APIs.
+ * Uses navigator.mediaDevices and MediaRecorder.
  * 
- * @param options - Audio recorder configuration
+ * @param options - Audio recording configuration
  * @returns Audio recorder state and controls
  */
-export function useAudioRecorder(options: UseAudioRecorderOptions): UseAudioRecorderReturn {
-    const { maxDurationMs, mimeTypes, onRecordingComplete } = options
+export function useAudioRecorder(
+    options: Partial<UseAudioRecorderOptions> = {}
+): UseAudioRecorderReturn {
+    const config = { ...DEFAULT_OPTIONS, ...options }
 
     const [isRecording, setIsRecording] = useState(false)
     const [duration, setDuration] = useState(0)
@@ -20,53 +45,41 @@ export function useAudioRecorder(options: UseAudioRecorderOptions): UseAudioReco
     const streamRef = useRef<MediaStream | null>(null)
     const chunksRef = useRef<Blob[]>([])
     const startTimeRef = useRef<number>(0)
-    const durationTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-    const maxDurationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+    const maxDurationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    // Check browser support
+    // Check if audio recording is supported
     const isSupported = typeof navigator !== 'undefined'
-        && navigator.mediaDevices
+        && 'mediaDevices' in navigator
+        && 'getUserMedia' in navigator.mediaDevices
         && typeof MediaRecorder !== 'undefined'
 
-    // Get supported MIME type
-    const getSupportedMimeType = useCallback((): string | undefined => {
-        if (typeof MediaRecorder === 'undefined') return undefined
-
-        for (const mimeType of mimeTypes) {
-            if (MediaRecorder.isTypeSupported(mimeType)) {
-                return mimeType
-            }
+    // Cleanup function
+    const cleanup = useCallback(() => {
+        if (durationIntervalRef.current) {
+            clearInterval(durationIntervalRef.current)
+            durationIntervalRef.current = null
         }
 
-        // Fallback to default
-        return undefined
-    }, [mimeTypes])
-
-    // Stop recording helper
-    const stopRecordingInternal = useCallback(() => {
-        // Stop duration timer
-        if (durationTimerRef.current) {
-            clearInterval(durationTimerRef.current)
-            durationTimerRef.current = null
+        if (maxDurationTimeoutRef.current) {
+            clearTimeout(maxDurationTimeoutRef.current)
+            maxDurationTimeoutRef.current = null
         }
 
-        // Clear max duration timer
-        if (maxDurationTimerRef.current) {
-            clearTimeout(maxDurationTimerRef.current)
-            maxDurationTimerRef.current = null
-        }
-
-        // Stop media recorder
-        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-            mediaRecorderRef.current.stop()
-        }
-
-        // Stop all tracks
         if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop())
+            streamRef.current.getTracks().forEach((track) => track.stop())
             streamRef.current = null
         }
 
+        mediaRecorderRef.current = null
+        chunksRef.current = []
+    }, [])
+
+    // Stop recording
+    const stopRecording = useCallback(() => {
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+            mediaRecorderRef.current.stop()
+        }
         setIsRecording(false)
     }, [])
 
@@ -77,17 +90,19 @@ export function useAudioRecorder(options: UseAudioRecorderOptions): UseAudioReco
             return
         }
 
-        try {
-            setError(null)
-            setAudioBlob(null)
-            chunksRef.current = []
+        // Reset state
+        setError(null)
+        setAudioBlob(null)
+        setDuration(0)
+        chunksRef.current = []
 
-            // Request microphone access
+        try {
+            // Get microphone access
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
             streamRef.current = stream
 
             // Get supported MIME type
-            const mimeType = getSupportedMimeType()
+            const mimeType = getSupportedMimeType(config.mimeTypes)
 
             // Create MediaRecorder
             const mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
@@ -100,55 +115,67 @@ export function useAudioRecorder(options: UseAudioRecorderOptions): UseAudioReco
                 }
             }
 
-            // Handle stop
+            // Handle recording stop
             mediaRecorder.onstop = () => {
                 const blob = new Blob(chunksRef.current, {
                     type: mimeType || 'audio/webm'
                 })
                 setAudioBlob(blob)
-                onRecordingComplete?.(blob)
+
+                // Call callback if provided
+                if (config.onRecordingComplete) {
+                    config.onRecordingComplete(blob)
+                }
+
+                cleanup()
             }
 
-            // Handle error
+            // Handle errors
             mediaRecorder.onerror = (event) => {
                 setError(new Error('Recording error occurred'))
-                stopRecordingInternal()
+                setIsRecording(false)
+                cleanup()
             }
 
             // Start recording
             mediaRecorder.start(100) // Collect data every 100ms
-            setIsRecording(true)
             startTimeRef.current = Date.now()
-            setDuration(0)
+            setIsRecording(true)
 
             // Update duration every 100ms
-            durationTimerRef.current = setInterval(() => {
+            durationIntervalRef.current = setInterval(() => {
                 setDuration(Date.now() - startTimeRef.current)
             }, 100)
 
-            // Auto-stop after max duration
-            maxDurationTimerRef.current = setTimeout(() => {
-                stopRecordingInternal()
-            }, maxDurationMs)
+            // Auto-stop at max duration
+            maxDurationTimeoutRef.current = setTimeout(() => {
+                stopRecording()
+            }, config.maxDurationMs)
 
         } catch (err) {
-            const errorMessage = err instanceof Error ? err.message : 'Failed to start recording'
+            const errorMessage = err instanceof Error
+                ? err.message
+                : 'Failed to access microphone'
             setError(new Error(errorMessage))
-            setIsRecording(false)
+            cleanup()
         }
-    }, [isSupported, getSupportedMimeType, maxDurationMs, onRecordingComplete, stopRecordingInternal])
+    }, [isSupported, config.mimeTypes, config.maxDurationMs, config.onRecordingComplete, cleanup, stopRecording])
 
-    // Public stop recording
-    const stopRecording = useCallback(() => {
-        stopRecordingInternal()
-    }, [stopRecordingInternal])
+    // Reset hook state
+    const reset = useCallback(() => {
+        cleanup()
+        setIsRecording(false)
+        setDuration(0)
+        setAudioBlob(null)
+        setError(null)
+    }, [cleanup])
 
     // Cleanup on unmount
     useEffect(() => {
         return () => {
-            stopRecordingInternal()
+            cleanup()
         }
-    }, [stopRecordingInternal])
+    }, [cleanup])
 
     return {
         isRecording,
@@ -158,5 +185,6 @@ export function useAudioRecorder(options: UseAudioRecorderOptions): UseAudioReco
         error,
         startRecording,
         stopRecording,
+        reset,
     }
 }

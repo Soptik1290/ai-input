@@ -13,60 +13,103 @@ function formatDuration(ms: number): string {
 }
 
 /**
- * Default UI for text input mode
+ * Default UI component for text mode
  */
-function DefaultTextUI({
+function TextModeUI({
     text,
     setText,
     submit,
+    canSubmit,
     state,
-    isSubmitDisabled,
     error,
     cooldownRemaining,
-    placeholder = 'Enter your message...',
+    placeholder = 'Type your message...',
     submitLabel = 'Send',
-    className = '',
-}: AiInputRenderProps & { placeholder?: string; submitLabel?: string; className?: string }) {
+    disabled = false,
+}: AiInputRenderProps & {
+    placeholder?: string
+    submitLabel?: string
+    disabled?: boolean
+}) {
+    const isLoading = state === 'loading'
+    const isRateLimited = state === 'rate-limited'
+    const hasError = state === 'error'
+
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Enter' && !e.shiftKey && !isSubmitDisabled) {
+        if (e.key === 'Enter' && !e.shiftKey && canSubmit) {
             e.preventDefault()
             submit()
         }
     }
 
     return (
-        <div className={`flex flex-col gap-3 ${className}`}>
+        <div className="flex flex-col gap-3">
             <textarea
                 value={text}
                 onChange={(e) => setText(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={placeholder}
-                disabled={state === 'loading'}
-                className="min-h-[100px] w-full resize-none rounded-md border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-50 dark:placeholder:text-zinc-400 dark:focus:ring-amber-400"
+                disabled={disabled || isLoading || isRateLimited}
+                rows={3}
+                className={`
+          w-full px-3 py-2 
+          bg-zinc-900 border border-zinc-800 
+          rounded-sm text-zinc-100 placeholder:text-zinc-500
+          focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:border-amber-500
+          disabled:opacity-50 disabled:cursor-not-allowed
+          resize-none
+          transition-colors
+        `}
             />
 
             <div className="flex items-center justify-between">
-                <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                    {state === 'loading' && (
-                        <span className="flex items-center gap-2">
-                            <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
-                            Processing...
+                <div className="text-sm">
+                    {hasError && error && (
+                        <span className="text-red-400">{error.message}</span>
+                    )}
+                    {isRateLimited && (
+                        <span className="text-amber-400">
+                            Cooldown: {formatDuration(cooldownRemaining)}
                         </span>
-                    )}
-                    {state === 'rate-limited' && cooldownRemaining > 0 && (
-                        <span>Please wait {Math.ceil(cooldownRemaining / 1000)}s...</span>
-                    )}
-                    {state === 'error' && error && (
-                        <span className="text-red-500 dark:text-red-400">{error.message}</span>
                     )}
                 </div>
 
                 <button
-                    type="button"
                     onClick={submit}
-                    disabled={isSubmitDisabled}
-                    className="inline-flex h-10 items-center justify-center rounded-md bg-amber-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-700 dark:focus:ring-amber-400"
+                    disabled={!canSubmit || disabled}
+                    className={`
+            px-4 py-2 
+            bg-amber-500 hover:bg-amber-600 
+            text-zinc-900 font-medium 
+            rounded-sm
+            focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900
+            disabled:opacity-50 disabled:cursor-not-allowed
+            transition-colors
+            flex items-center gap-2
+          `}
                 >
+                    {isLoading && (
+                        <svg
+                            className="animate-spin h-4 w-4"
+                            xmlns="http://www.w3.org/2000/svg"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                        >
+                            <circle
+                                className="opacity-25"
+                                cx="12"
+                                cy="12"
+                                r="10"
+                                stroke="currentColor"
+                                strokeWidth="4"
+                            />
+                            <path
+                                className="opacity-75"
+                                fill="currentColor"
+                                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                            />
+                        </svg>
+                    )}
                     {submitLabel}
                 </button>
             </div>
@@ -75,74 +118,141 @@ function DefaultTextUI({
 }
 
 /**
- * Default UI for audio input mode
+ * Default UI component for audio mode
  */
-function DefaultAudioUI({
+function AudioModeUI({
     isRecording,
     startRecording,
     stopRecording,
     recordingDuration,
+    maxRecordingDuration,
     state,
     error,
     cooldownRemaining,
-    isRateLimited,
-    recordLabel = 'Start Recording',
-    stopLabel = 'Stop Recording',
-    className = '',
-}: AiInputRenderProps & { recordLabel?: string; stopLabel?: string; className?: string }) {
+    canSubmit,
+    recordLabel = 'Record',
+    stopLabel = 'Stop',
+    disabled = false,
+}: AiInputRenderProps & {
+    recordLabel?: string
+    stopLabel?: string
+    disabled?: boolean
+}) {
+    const isLoading = state === 'loading'
+    const isRateLimited = state === 'rate-limited'
+    const hasError = state === 'error'
+
+    const progressPercent = (recordingDuration / maxRecordingDuration) * 100
+
     return (
-        <div className={`flex flex-col items-center gap-4 ${className}`}>
-            {/* Recording indicator */}
-            <div className="flex h-24 w-24 items-center justify-center rounded-full border-4 border-zinc-200 dark:border-zinc-800">
-                {isRecording ? (
-                    <div className="flex flex-col items-center">
-                        <span className="h-4 w-4 animate-pulse rounded-full bg-red-500" />
-                        <span className="mt-2 text-sm font-medium text-zinc-900 dark:text-zinc-50">
-                            {formatDuration(recordingDuration)}
+        <div className="flex flex-col gap-3">
+            {/* Recording progress */}
+            {isRecording && (
+                <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm text-zinc-400">
+                        <span>Recording...</span>
+                        <span>
+                            {formatDuration(recordingDuration)} / {formatDuration(maxRecordingDuration)}
                         </span>
                     </div>
-                ) : (
-                    <span className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {state === 'loading' ? 'Sending...' : 'Ready'}
-                    </span>
-                )}
-            </div>
-
-            {/* Record/Stop button */}
-            {isRecording ? (
-                <button
-                    type="button"
-                    onClick={stopRecording}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-red-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 dark:bg-red-600 dark:hover:bg-red-700"
-                >
-                    <span className="h-3 w-3 rounded-sm bg-white" />
-                    {stopLabel}
-                </button>
-            ) : (
-                <button
-                    type="button"
-                    onClick={startRecording}
-                    disabled={state === 'loading' || isRateLimited}
-                    className="inline-flex h-12 items-center justify-center gap-2 rounded-md bg-amber-500 px-6 py-3 text-sm font-medium text-white transition-colors hover:bg-amber-600 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 dark:bg-amber-600 dark:hover:bg-amber-700 dark:focus:ring-amber-400"
-                >
-                    <span className="h-3 w-3 rounded-full bg-white" />
-                    {recordLabel}
-                </button>
+                    <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
+                        <div
+                            className="h-full bg-amber-500 transition-all duration-100"
+                            style={{ width: `${Math.min(progressPercent, 100)}%` }}
+                        />
+                    </div>
+                </div>
             )}
 
-            {/* Status messages */}
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-                {state === 'loading' && (
-                    <span className="flex items-center gap-2">
-                        <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
-                        Processing audio...
-                    </span>
-                )}
-                {state === 'rate-limited' && cooldownRemaining > 0 && (
-                    <span>Please wait {Math.ceil(cooldownRemaining / 1000)}s...</span>
-                )}
-                {state === 'error' && error && (
-                    <span className="text-red-500 dark:text-red-400">{error.message}</span>
+            {/* Loading state */}
+            {isLoading && (
+                <div className="flex items-center gap-2 text-sm text-zinc-400">
+                    <svg
+                        className="animate-spin h-4 w-4"
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                    >
+                        <circle
+                            className="opacity-25"
+                            cx="12"
+                            cy="12"
+                            r="10"
+                            stroke="currentColor"
+                            strokeWidth="4"
+                        />
+                        <path
+                            className="opacity-75"
+                            fill="currentColor"
+                            d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                        />
+                    </svg>
+                    <span>Processing audio...</span>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between">
+                <div className="text-sm">
+                    {hasError && error && (
+                        <span className="text-red-400">{error.message}</span>
+                    )}
+                    {isRateLimited && (
+                        <span className="text-amber-400">
+                            Cooldown: {formatDuration(cooldownRemaining)}
+                        </span>
+                    )}
+                </div>
+
+                {!isRecording ? (
+                    <button
+                        onClick={startRecording}
+                        disabled={!canSubmit || disabled || isLoading}
+                        className={`
+              px-4 py-2 
+              bg-amber-500 hover:bg-amber-600 
+              text-zinc-900 font-medium 
+              rounded-sm
+              focus:outline-none focus:ring-2 focus:ring-amber-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition-colors
+              flex items-center gap-2
+            `}
+                    >
+                        {/* Microphone icon */}
+                        <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 256 256"
+                            fill="currentColor"
+                        >
+                            <path d="M128,176a48.05,48.05,0,0,0,48-48V64a48,48,0,0,0-96,0v64A48.05,48.05,0,0,0,128,176ZM96,64a32,32,0,0,1,64,0v64a32,32,0,0,1-64,0Zm40,143.6V232a8,8,0,0,1-16,0V207.6A80.11,80.11,0,0,1,48,128a8,8,0,0,1,16,0,64,64,0,0,0,128,0,8,8,0,0,1,16,0A80.11,80.11,0,0,1,136,207.6Z" />
+                        </svg>
+                        {recordLabel}
+                    </button>
+                ) : (
+                    <button
+                        onClick={stopRecording}
+                        disabled={disabled}
+                        className={`
+              px-4 py-2 
+              bg-red-500 hover:bg-red-600 
+              text-white font-medium 
+              rounded-sm
+              focus:outline-none focus:ring-2 focus:ring-red-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900
+              disabled:opacity-50 disabled:cursor-not-allowed
+              transition-colors
+              flex items-center gap-2
+            `}
+                    >
+                        {/* Stop icon */}
+                        <svg
+                            className="h-4 w-4"
+                            viewBox="0 0 256 256"
+                            fill="currentColor"
+                        >
+                            <path d="M200,40H56A16,16,0,0,0,40,56V200a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,160H56V56H200V200Z" />
+                        </svg>
+                        {stopLabel}
+                    </button>
                 )}
             </div>
         </div>
@@ -153,29 +263,34 @@ function DefaultAudioUI({
  * AiInput Component
  * 
  * A React component for text/audio input with AI API integration.
- * Supports both a default UI and headless mode via render props.
+ * Supports both controlled (headless) and uncontrolled (default UI) modes.
  * 
  * @example
- * ```tsx
- * // Default UI
+ * // Default UI - Text mode
  * <AiInput
  *   mode="text"
- *   send={async (input) => await fetch('/api/ai', { body: input })}
+ *   send={async (input) => {
+ *     const response = await fetch('/api/chat', {
+ *       method: 'POST',
+ *       body: JSON.stringify({ message: input }),
+ *     })
+ *     return response.json()
+ *   }}
  *   onSuccess={(result) => console.log(result)}
  * />
  * 
- * // Headless mode
+ * @example
+ * // Headless mode with custom UI
  * <AiInput mode="text" send={sendFn}>
  *   {({ text, setText, submit, state }) => (
  *     <div>
  *       <input value={text} onChange={(e) => setText(e.target.value)} />
  *       <button onClick={submit} disabled={state === 'loading'}>
- *         {state === 'loading' ? 'Sending...' : 'Send'}
+ *         Send
  *       </button>
  *     </div>
  *   )}
  * </AiInput>
- * ```
  */
 export function AiInput({
     mode,
@@ -184,47 +299,46 @@ export function AiInput({
     audioConfig,
     onSuccess,
     onError,
-    onStateChange,
     children,
     placeholder,
     submitLabel,
     recordLabel,
     stopLabel,
     className,
-}: AiInputProps): React.ReactElement {
-    const renderProps = useAiInput({
+    disabled = false,
+}: AiInputProps) {
+    const inputState = useAiInput({
         mode,
         send,
         rateLimit,
         audioConfig,
         onSuccess,
         onError,
-        onStateChange,
     })
 
     // Headless mode - render prop
     if (children) {
-        return <>{children(renderProps)}</>
+        return <>{children(inputState)}</>
     }
 
     // Default UI
-    if (mode === 'text') {
-        return (
-            <DefaultTextUI
-                {...renderProps}
-                placeholder={placeholder}
-                submitLabel={submitLabel}
-                className={className}
-            />
-        )
-    }
-
     return (
-        <DefaultAudioUI
-            {...renderProps}
-            recordLabel={recordLabel}
-            stopLabel={stopLabel}
-            className={className}
-        />
+        <div className={`w-full ${className || ''}`}>
+            {mode === 'text' ? (
+                <TextModeUI
+                    {...inputState}
+                    placeholder={placeholder}
+                    submitLabel={submitLabel}
+                    disabled={disabled}
+                />
+            ) : (
+                <AudioModeUI
+                    {...inputState}
+                    recordLabel={recordLabel}
+                    stopLabel={stopLabel}
+                    disabled={disabled}
+                />
+            )}
+        </div>
     )
 }

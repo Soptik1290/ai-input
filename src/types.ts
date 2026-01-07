@@ -1,32 +1,40 @@
-// ============================================================================
-// AI Input React - Public Types
-// ============================================================================
+import type { ReactNode } from 'react'
+
+// =============================================================================
+// MODES & STATES
+// =============================================================================
 
 /**
  * Input mode for the AiInput component
  */
-export type AiInputMode = "text" | "audio"
+export type AiInputMode = 'text' | 'audio'
 
 /**
- * State of the AiInput component
+ * Current state of the AiInput component
  */
 export type AiInputState =
-    | "idle"
-    | "loading"
-    | "success"
-    | "error"
-    | "rate-limited"
-    | "recording"
+    | 'idle'
+    | 'loading'
+    | 'success'
+    | 'error'
+    | 'rate-limited'
+    | 'recording'
+
+// =============================================================================
+// CONFIGURATION
+// =============================================================================
 
 /**
- * Rate limiting configuration for UI-level protection
+ * Rate limiting configuration for UI protection
+ * Note: This is soft rate limiting for UX only. 
+ * Actual rate limiting should be handled by the AI provider.
  */
 export interface RateLimitConfig {
-    /** Cooldown duration between requests in milliseconds */
+    /** Cooldown between requests in milliseconds */
     cooldownMs: number
     /** Maximum number of requests allowed in the time window */
     maxRequests: number
-    /** Time window for request counting in milliseconds */
+    /** Time window in milliseconds for counting requests */
     windowMs: number
 }
 
@@ -36,111 +44,161 @@ export interface RateLimitConfig {
 export interface AudioConfig {
     /** Maximum recording duration in milliseconds */
     maxDurationMs: number
-    /** Supported MIME types for audio recording */
+    /** 
+     * Allowed MIME types for recording 
+     * @example ['audio/webm', 'audio/mp4', 'audio/ogg']
+     */
     mimeTypes: string[]
 }
 
+// =============================================================================
+// TRANSPORT
+// =============================================================================
+
 /**
- * Transport function for sending input to AI API
- * This function is provided by the host application
+ * Transport function for sending input to AI API.
+ * Must be provided by the host application.
+ * 
  * @param input - Text string or audio Blob to send
- * @returns Promise resolving to API response
+ * @returns Promise resolving to the API response
+ * 
+ * @example
+ * // Text input (GPT-5-mini)
+ * const sendText: SendFunction = async (input) => {
+ *   const response = await fetch('/api/chat', {
+ *     method: 'POST',
+ *     headers: { 'Authorization': `Bearer ${token}` },
+ *     body: JSON.stringify({ message: input }),
+ *   })
+ *   return response.json()
+ * }
+ * 
+ * @example
+ * // Audio input (Whisper API)
+ * const sendAudio: SendFunction = async (input) => {
+ *   const formData = new FormData()
+ *   formData.append('file', input as Blob, 'audio.webm')
+ *   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+ *     method: 'POST',
+ *     headers: { 'Authorization': `Bearer ${token}` },
+ *     body: formData,
+ *   })
+ *   return response.json()
+ * }
  */
 export type SendFunction = (input: string | Blob) => Promise<unknown>
 
+// =============================================================================
+// RENDER PROPS
+// =============================================================================
+
 /**
- * Render props / headless API for AiInput component
+ * Props passed to render function for headless usage
  */
 export interface AiInputRenderProps {
-    /** Current state of the component */
+    // State
+    /** Current component state */
     state: AiInputState
-    /** Error object if state is "error" */
+    /** Error if state is 'error' */
     error: Error | null
-    /** Result from the last successful API call */
+    /** Result from last successful request */
     result: unknown
 
-    // Text mode controls
-    /** Current text value */
+    // Text mode
+    /** Current text value (controlled) */
     text: string
-    /** Set text value */
+    /** Update text value */
     setText: (value: string) => void
-    /** Submit text to AI API */
+    /** Submit current text */
     submit: () => void
-    /** Whether submit is currently disabled */
-    isSubmitDisabled: boolean
+    /** Whether submit is currently allowed */
+    canSubmit: boolean
 
-    // Audio mode controls
+    // Audio mode
     /** Whether currently recording */
     isRecording: boolean
     /** Start audio recording */
-    startRecording: () => void
-    /** Stop audio recording and submit */
+    startRecording: () => Promise<void>
+    /** Stop audio recording and trigger send */
     stopRecording: () => void
     /** Current recording duration in milliseconds */
     recordingDuration: number
-    /** Last recorded audio blob */
-    audioBlob: Blob | null
+    /** Maximum recording duration in milliseconds */
+    maxRecordingDuration: number
 
-    // Rate limiting info
+    // Rate limiting
     /** Remaining cooldown time in milliseconds */
     cooldownRemaining: number
-    /** Remaining requests in current time window */
+    /** Remaining requests in current window */
     requestsRemaining: number
-    /** Whether rate limited */
-    isRateLimited: boolean
+
+    // Utils
+    /** Reset component to idle state */
+    reset: () => void
 }
+
+// =============================================================================
+// COMPONENT PROPS
+// =============================================================================
 
 /**
  * Props for the AiInput component
  */
 export interface AiInputProps {
-    /** Input mode: text or audio */
+    /** Input mode: 'text' for text input, 'audio' for voice recording */
     mode: AiInputMode
-    /** Transport function for sending input to AI API */
+
+    /** 
+     * Transport function for sending input to AI API.
+     * Must be provided by the host application.
+     */
     send: SendFunction
+
     /** Rate limiting configuration (optional) */
     rateLimit?: Partial<RateLimitConfig>
-    /** Audio configuration (optional, only for audio mode) */
+
+    /** Audio configuration (optional, only used in audio mode) */
     audioConfig?: Partial<AudioConfig>
-    /** Callback when API call succeeds */
+
+    /** Callback when request succeeds */
     onSuccess?: (result: unknown) => void
-    /** Callback when API call fails */
+
+    /** Callback when request fails */
     onError?: (error: Error) => void
-    /** Callback when state changes */
-    onStateChange?: (state: AiInputState) => void
 
-    // Headless API - render prop pattern
-    /** Render function for headless mode */
-    children?: (props: AiInputRenderProps) => React.ReactNode
+    // Headless API
+    /** 
+     * Render function for headless usage.
+     * When provided, default UI is not rendered.
+     */
+    children?: (props: AiInputRenderProps) => ReactNode
 
-    // Default UI props (ignored when children is provided)
-    /** Placeholder text for input field */
+    // Default UI props
+    /** Placeholder text for input (text mode only) */
     placeholder?: string
-    /** Label for submit button */
+
+    /** Label for submit button (text mode only) */
     submitLabel?: string
-    /** Label for record button */
+
+    /** Label for record button (audio mode only) */
     recordLabel?: string
-    /** Label for stop recording button */
+
+    /** Label for stop button (audio mode only) */
     stopLabel?: string
-    /** Additional CSS classes */
+
+    /** Additional CSS classes for the container */
     className?: string
+
+    /** Whether the input is disabled */
+    disabled?: boolean
 }
 
-/**
- * Props for useAiInput hook
- */
-export interface UseAiInputOptions {
-    mode: AiInputMode
-    send: SendFunction
-    rateLimit?: Partial<RateLimitConfig>
-    audioConfig?: Partial<AudioConfig>
-    onSuccess?: (result: unknown) => void
-    onError?: (error: Error) => void
-    onStateChange?: (state: AiInputState) => void
-}
+// =============================================================================
+// HOOK TYPES
+// =============================================================================
 
 /**
- * Props for useRateLimiter hook
+ * Options for useRateLimiter hook
  */
 export interface UseRateLimiterOptions {
     cooldownMs: number
@@ -160,7 +218,7 @@ export interface UseRateLimiterReturn {
 }
 
 /**
- * Props for useAudioRecorder hook
+ * Options for useAudioRecorder hook
  */
 export interface UseAudioRecorderOptions {
     maxDurationMs: number
@@ -179,25 +237,22 @@ export interface UseAudioRecorderReturn {
     error: Error | null
     startRecording: () => Promise<void>
     stopRecording: () => void
+    reset: () => void
 }
 
-// ============================================================================
-// Default configurations
-// ============================================================================
-
-export const DEFAULT_RATE_LIMIT: RateLimitConfig = {
-    cooldownMs: 1000,
-    maxRequests: 10,
-    windowMs: 60000,
+/**
+ * Options for useAiInput hook
+ */
+export interface UseAiInputOptions {
+    mode: AiInputMode
+    send: SendFunction
+    rateLimit?: Partial<RateLimitConfig>
+    audioConfig?: Partial<AudioConfig>
+    onSuccess?: (result: unknown) => void
+    onError?: (error: Error) => void
 }
 
-export const DEFAULT_AUDIO_CONFIG: AudioConfig = {
-    maxDurationMs: 60000, // 1 minute
-    mimeTypes: [
-        'audio/webm',
-        'audio/webm;codecs=opus',
-        'audio/mp4',
-        'audio/ogg',
-        'audio/wav',
-    ],
-}
+/**
+ * Return type for useAiInput hook
+ */
+export type UseAiInputReturn = AiInputRenderProps

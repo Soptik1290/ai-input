@@ -1,31 +1,33 @@
-// ============================================================================
-// ai-input-react
-// React component for text/audio input with AI API integration
-// ============================================================================
-
 // Components
 export { AiInput } from './components/AiInput'
 
-// Hooks
+// Hooks (for headless usage)
 export { useAiInput } from './hooks/useAiInput'
 export { useAudioRecorder } from './hooks/useAudioRecorder'
 export { useRateLimiter } from './hooks/useRateLimiter'
 
 // Types
 export type {
+    // Modes & States
     AiInputMode,
     AiInputState,
-    AiInputProps,
-    AiInputRenderProps,
+
+    // Configuration
     RateLimitConfig,
     AudioConfig,
+
+    // Transport
     SendFunction,
-    UseAiInputOptions,
+
+    // Component Props
+    AiInputProps,
+    AiInputRenderProps,
+
+    // Hook Types
     UseRateLimiterOptions,
     UseRateLimiterReturn,
     UseAudioRecorderOptions,
     UseAudioRecorderReturn,
+    UseAiInputOptions,
+    UseAiInputReturn,
 } from './types'
-
-// Constants
-export { DEFAULT_RATE_LIMIT, DEFAULT_AUDIO_CONFIG } from './types'
