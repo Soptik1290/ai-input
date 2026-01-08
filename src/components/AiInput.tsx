@@ -13,24 +13,37 @@ function formatDuration(ms: number): string {
 }
 
 /**
- * Waveform visualization component - larger for toolbar
+ * Waveform visualization component with smooth animations
  */
 function Waveform({ levels, className = '' }: { levels: number[]; className?: string }) {
     // Generate 16 bars if no levels provided
-    const bars = levels.length > 0 ? levels : Array(16).fill(0.1)
+    const bars = levels.length > 0 ? levels : Array(16).fill(0.15)
 
     return (
         <div className={`flex items-center justify-center gap-1 h-10 ${className}`}>
             {bars.map((level, i) => (
                 <div
                     key={i}
-                    className="w-1.5 bg-amber-500 rounded-full transition-all duration-75"
+                    className="w-1.5 bg-gradient-to-t from-amber-600 to-amber-400 rounded-full transition-all duration-100 ease-out"
                     style={{
                         height: `${Math.max(6, level * 40)}px`,
+                        opacity: 0.6 + level * 0.4,
                     }}
                 />
             ))}
         </div>
+    )
+}
+
+/**
+ * Recording pulse indicator
+ */
+function RecordingPulse() {
+    return (
+        <span className="relative flex h-3 w-3 mr-2">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+        </span>
     )
 }
 
@@ -57,12 +70,12 @@ function ArrowUpIcon({ className = '' }: { className?: string }) {
 }
 
 /**
- * Stop icon
+ * Stop icon (filled square)
  */
 function StopIcon({ className = '' }: { className?: string }) {
     return (
         <svg className={className} viewBox="0 0 256 256" fill="currentColor">
-            <path d="M200,40H56A16,16,0,0,0,40,56V200a16,16,0,0,0,16,16H200a16,16,0,0,0,16-16V56A16,16,0,0,0,200,40Zm0,160H56V56H200V200Z" />
+            <rect x="64" y="64" width="128" height="128" rx="8" />
         </svg>
     )
 }
@@ -116,7 +129,6 @@ function DefaultUI({
     stopRecording,
     cancelRecording,
     recordingDuration,
-    maxRecordingDuration,
     audioLevels,
     cooldownRemaining,
     placeholder = 'Ask anything...',
@@ -150,9 +162,12 @@ function DefaultUI({
             {/* Main container */}
             <div
                 className={`
-                    bg-zinc-900 border border-zinc-800 rounded-xl
-                    focus-within:ring-1 focus-within:ring-amber-500/50 focus-within:border-amber-500/50
-                    transition-all duration-200
+                    bg-zinc-900 border rounded-xl
+                    transition-all duration-300 ease-out
+                    ${isRecording
+                        ? 'border-red-500/50 shadow-lg shadow-red-500/10'
+                        : 'border-zinc-800 focus-within:border-amber-500/50 focus-within:shadow-lg focus-within:shadow-amber-500/5'
+                    }
                     ${disabled ? 'opacity-50' : ''}
                 `}
             >
@@ -171,6 +186,7 @@ function DefaultUI({
                         disabled:cursor-not-allowed
                         resize-none
                         min-h-[56px]
+                        transition-colors duration-200
                     `}
                     style={{ height: '56px' }}
                 />
@@ -178,31 +194,34 @@ function DefaultUI({
                 {/* Toolbar */}
                 <div className="flex items-center justify-between px-3 pb-3 pt-1">
                     {/* Left side - error/status or waveform during recording */}
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
                         {isRecording ? (
                             <>
                                 {/* Cancel recording */}
                                 <button
                                     onClick={cancelRecording}
                                     disabled={disabled}
-                                    className="p-2 text-zinc-400 hover:text-zinc-200 transition-colors"
+                                    className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-all duration-200 active:scale-95"
                                     aria-label="Cancel recording"
                                 >
                                     <XIcon className="h-5 w-5" />
                                 </button>
 
-                                {/* Waveform visualization */}
-                                <Waveform levels={audioLevels} />
+                                {/* Recording indicator + Waveform */}
+                                <div className="flex items-center">
+                                    <RecordingPulse />
+                                    <Waveform levels={audioLevels} />
+                                </div>
 
-                                {/* Timer - just elapsed time */}
-                                <span className="text-sm text-zinc-400 font-mono">
+                                {/* Timer */}
+                                <span className="text-sm text-zinc-400 font-mono tabular-nums">
                                     {formatDuration(recordingDuration)}
                                 </span>
                             </>
                         ) : (
-                            <div className="text-sm">
+                            <div className="text-sm min-h-[28px] flex items-center">
                                 {hasError && error && (
-                                    <span className="text-red-400">{error.message}</span>
+                                    <span className="text-red-400 animate-pulse">{error.message}</span>
                                 )}
                                 {isRateLimited && (
                                     <span className="text-amber-400">
@@ -223,10 +242,12 @@ function DefaultUI({
                                     disabled={disabled}
                                     className={`
                                         p-2.5 rounded-full
-                                        bg-red-500 hover:bg-red-600
+                                        bg-red-500 hover:bg-red-400
                                         text-white
-                                        transition-colors
+                                        transition-all duration-200
+                                        hover:scale-105 active:scale-95
                                         disabled:opacity-50 disabled:cursor-not-allowed
+                                        shadow-lg shadow-red-500/25
                                     `}
                                     aria-label="Stop recording"
                                 >
@@ -240,9 +261,12 @@ function DefaultUI({
                                     onClick={startRecording}
                                     disabled={disabled || isLoading || isRateLimited}
                                     className={`
-                                        p-2 text-zinc-400 hover:text-zinc-200
-                                        transition-colors
-                                        disabled:opacity-50 disabled:cursor-not-allowed
+                                        p-2 text-zinc-400 
+                                        hover:text-amber-400 hover:bg-zinc-800
+                                        rounded-lg
+                                        transition-all duration-200
+                                        hover:scale-105 active:scale-95
+                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
                                     `}
                                     aria-label="Start recording"
                                 >
@@ -255,11 +279,11 @@ function DefaultUI({
                                     disabled={!canSubmit || disabled}
                                     className={`
                                         p-2.5 rounded-full
-                                        transition-colors
-                                        disabled:opacity-50 disabled:cursor-not-allowed
+                                        transition-all duration-200
+                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
                                         ${canSubmit
-                                            ? 'bg-amber-500 hover:bg-amber-600 text-zinc-900'
-                                            : 'bg-zinc-700 text-zinc-500'
+                                            ? 'bg-amber-500 hover:bg-amber-400 text-zinc-900 hover:scale-105 active:scale-95 shadow-lg shadow-amber-500/25'
+                                            : 'bg-zinc-800 text-zinc-500'
                                         }
                                     `}
                                     aria-label="Send message"

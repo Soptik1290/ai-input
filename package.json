@@ -1,6 +1,6 @@
 {
     "name": "ai-input-react",
-    "version": "1.0.0-beta.1",
+    "version": "1.0.0-beta.2",
     "description": "React component for text/audio input with AI API integration. Framework-agnostic, works with Next.js, Vite, PHP, and any React setup.",
     "keywords": [
         "react",
