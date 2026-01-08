@@ -60,28 +60,33 @@ export function useAudioRecorder(
         && 'getUserMedia' in navigator.mediaDevices
         && typeof MediaRecorder !== 'undefined'
 
-    // Update audio levels from analyser
+    // Update audio levels from analyser - uses time domain for better voice visualization
     const updateAudioLevels = useCallback(() => {
         if (!analyserRef.current) return
 
         const analyser = analyserRef.current
-        const bufferLength = analyser.frequencyBinCount
+        const bufferLength = analyser.fftSize
         const dataArray = new Uint8Array(bufferLength)
-        analyser.getByteFrequencyData(dataArray)
 
-        // Sample 12 bars from the frequency data
-        const bars = 12
+        // Use time domain data for even distribution across bars
+        analyser.getByteTimeDomainData(dataArray)
+
+        // Sample 16 bars from the waveform data
+        const bars = 16
         const step = Math.floor(bufferLength / bars)
         const levels: number[] = []
 
         for (let i = 0; i < bars; i++) {
-            // Average a range of frequencies for each bar
-            let sum = 0
+            // Get amplitude variation from center (128) for each segment
+            let maxDeviation = 0
             for (let j = 0; j < step; j++) {
-                sum += dataArray[i * step + j]
+                const value = dataArray[i * step + j]
+                const deviation = Math.abs(value - 128)
+                maxDeviation = Math.max(maxDeviation, deviation)
             }
-            // Normalize to 0-1 range
-            levels.push((sum / step) / 255)
+            // Normalize to 0-1 range (max deviation is 128)
+            // Apply some amplification for better visibility
+            levels.push(Math.min(1, (maxDeviation / 128) * 2.5))
         }
 
         setAudioLevels(levels)
