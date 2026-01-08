@@ -26,7 +26,7 @@ function getSupportedMimeType(preferredTypes: string[]): string | null {
 
 /**
  * Hook for audio recording using Web APIs.
- * Uses navigator.mediaDevices and MediaRecorder.
+ * Uses navigator.mediaDevices, MediaRecorder, and Web Audio API for visualization.
  * 
  * @param options - Audio recording configuration
  * @returns Audio recorder state and controls
@@ -40,6 +40,7 @@ export function useAudioRecorder(
     const [duration, setDuration] = useState(0)
     const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
     const [error, setError] = useState<Error | null>(null)
+    const [audioLevels, setAudioLevels] = useState<number[]>([])
 
     const mediaRecorderRef = useRef<MediaRecorder | null>(null)
     const streamRef = useRef<MediaStream | null>(null)
@@ -48,11 +49,46 @@ export function useAudioRecorder(
     const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
     const maxDurationTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+    // Web Audio API refs for visualization
+    const audioContextRef = useRef<AudioContext | null>(null)
+    const analyserRef = useRef<AnalyserNode | null>(null)
+    const animationFrameRef = useRef<number | null>(null)
+
     // Check if audio recording is supported
     const isSupported = typeof navigator !== 'undefined'
         && 'mediaDevices' in navigator
         && 'getUserMedia' in navigator.mediaDevices
         && typeof MediaRecorder !== 'undefined'
+
+    // Update audio levels from analyser
+    const updateAudioLevels = useCallback(() => {
+        if (!analyserRef.current) return
+
+        const analyser = analyserRef.current
+        const bufferLength = analyser.frequencyBinCount
+        const dataArray = new Uint8Array(bufferLength)
+        analyser.getByteFrequencyData(dataArray)
+
+        // Sample 12 bars from the frequency data
+        const bars = 12
+        const step = Math.floor(bufferLength / bars)
+        const levels: number[] = []
+
+        for (let i = 0; i < bars; i++) {
+            // Average a range of frequencies for each bar
+            let sum = 0
+            for (let j = 0; j < step; j++) {
+                sum += dataArray[i * step + j]
+            }
+            // Normalize to 0-1 range
+            levels.push((sum / step) / 255)
+        }
+
+        setAudioLevels(levels)
+
+        // Continue animation loop
+        animationFrameRef.current = requestAnimationFrame(updateAudioLevels)
+    }, [])
 
     // Cleanup function
     const cleanup = useCallback(() => {
@@ -66,13 +102,25 @@ export function useAudioRecorder(
             maxDurationTimeoutRef.current = null
         }
 
+        if (animationFrameRef.current) {
+            cancelAnimationFrame(animationFrameRef.current)
+            animationFrameRef.current = null
+        }
+
+        if (audioContextRef.current) {
+            audioContextRef.current.close()
+            audioContextRef.current = null
+        }
+
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((track) => track.stop())
             streamRef.current = null
         }
 
+        analyserRef.current = null
         mediaRecorderRef.current = null
         chunksRef.current = []
+        setAudioLevels([])
     }, [])
 
     // Stop recording
@@ -94,12 +142,24 @@ export function useAudioRecorder(
         setError(null)
         setAudioBlob(null)
         setDuration(0)
+        setAudioLevels([])
         chunksRef.current = []
 
         try {
             // Get microphone access
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
             streamRef.current = stream
+
+            // Set up Web Audio API for visualization
+            const audioContext = new AudioContext()
+            audioContextRef.current = audioContext
+
+            const source = audioContext.createMediaStreamSource(stream)
+            const analyser = audioContext.createAnalyser()
+            analyser.fftSize = 256
+            analyser.smoothingTimeConstant = 0.8
+            source.connect(analyser)
+            analyserRef.current = analyser
 
             // Get supported MIME type
             const mimeType = getSupportedMimeType(config.mimeTypes)
@@ -131,7 +191,7 @@ export function useAudioRecorder(
             }
 
             // Handle errors
-            mediaRecorder.onerror = (event) => {
+            mediaRecorder.onerror = () => {
                 setError(new Error('Recording error occurred'))
                 setIsRecording(false)
                 cleanup()
@@ -141,6 +201,9 @@ export function useAudioRecorder(
             mediaRecorder.start(100) // Collect data every 100ms
             startTimeRef.current = Date.now()
             setIsRecording(true)
+
+            // Start audio level visualization
+            updateAudioLevels()
 
             // Update duration every 100ms
             durationIntervalRef.current = setInterval(() => {
@@ -159,7 +222,15 @@ export function useAudioRecorder(
             setError(new Error(errorMessage))
             cleanup()
         }
-    }, [isSupported, config.mimeTypes, config.maxDurationMs, config.onRecordingComplete, cleanup, stopRecording])
+    }, [isSupported, config.mimeTypes, config.maxDurationMs, config.onRecordingComplete, cleanup, stopRecording, updateAudioLevels])
+
+    // Cancel recording (discard audio)
+    const cancelRecording = useCallback(() => {
+        cleanup()
+        setIsRecording(false)
+        setDuration(0)
+        setAudioBlob(null)
+    }, [cleanup])
 
     // Reset hook state
     const reset = useCallback(() => {
@@ -168,6 +239,7 @@ export function useAudioRecorder(
         setDuration(0)
         setAudioBlob(null)
         setError(null)
+        setAudioLevels([])
     }, [cleanup])
 
     // Cleanup on unmount
@@ -182,9 +254,11 @@ export function useAudioRecorder(
         isSupported,
         duration,
         audioBlob,
+        audioLevels,
         error,
         startRecording,
         stopRecording,
+        cancelRecording,
         reset,
     }
 }

@@ -44,7 +44,7 @@
     ],
     "scripts": {
         "build:js": "tsup",
-        "build:css": "npx @tailwindcss/cli -i ./src/styles.css -o ./dist/styles.css --minify -c ./tailwind.config.build.js",
+        "build:css": "npx @tailwindcss/cli -i ./src/styles.css -o ./dist/styles.css --minify",
         "build": "npm run build:js && npm run build:css",
         "dev": "tsup --watch",
         "typecheck": "tsc --noEmit",

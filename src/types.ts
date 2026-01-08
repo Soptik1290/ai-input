@@ -1,13 +1,8 @@
 import type { ReactNode } from 'react'
 
 // =============================================================================
-// MODES & STATES
+// STATES
 // =============================================================================
-
-/**
- * Input mode for the AiInput component
- */
-export type AiInputMode = 'text' | 'audio'
 
 /**
  * Current state of the AiInput component
@@ -61,30 +56,6 @@ export interface AudioConfig {
  * 
  * @param input - Text string or audio Blob to send
  * @returns Promise resolving to the API response
- * 
- * @example
- * // Text input (GPT-5-mini)
- * const sendText: SendFunction = async (input) => {
- *   const response = await fetch('/api/chat', {
- *     method: 'POST',
- *     headers: { 'Authorization': `Bearer ${token}` },
- *     body: JSON.stringify({ message: input }),
- *   })
- *   return response.json()
- * }
- * 
- * @example
- * // Audio input (Whisper API)
- * const sendAudio: SendFunction = async (input) => {
- *   const formData = new FormData()
- *   formData.append('file', input as Blob, 'audio.webm')
- *   const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
- *     method: 'POST',
- *     headers: { 'Authorization': `Bearer ${token}` },
- *     body: formData,
- *   })
- *   return response.json()
- * }
  */
 export type SendFunction = (input: string | Blob) => Promise<unknown>
 
@@ -104,27 +75,31 @@ export interface AiInputRenderProps {
     /** Result from last successful request */
     result: unknown
 
-    // Text mode
+    // Text input
     /** Current text value (controlled) */
     text: string
     /** Update text value */
     setText: (value: string) => void
-    /** Submit current text */
+    /** Submit current text or audio */
     submit: () => void
     /** Whether submit is currently allowed */
     canSubmit: boolean
 
-    // Audio mode
+    // Audio recording
     /** Whether currently recording */
     isRecording: boolean
     /** Start audio recording */
     startRecording: () => Promise<void>
-    /** Stop audio recording and trigger send */
+    /** Stop audio recording and send */
     stopRecording: () => void
+    /** Cancel audio recording (discard) */
+    cancelRecording: () => void
     /** Current recording duration in milliseconds */
     recordingDuration: number
     /** Maximum recording duration in milliseconds */
     maxRecordingDuration: number
+    /** Audio levels for waveform visualization (0-1 normalized, 12 bars) */
+    audioLevels: number[]
 
     // Rate limiting
     /** Remaining cooldown time in milliseconds */
@@ -145,19 +120,23 @@ export interface AiInputRenderProps {
  * Props for the AiInput component
  */
 export interface AiInputProps {
-    /** Input mode: 'text' for text input, 'audio' for voice recording */
-    mode: AiInputMode
-
     /** 
      * Transport function for sending input to AI API.
      * Must be provided by the host application.
      */
     send: SendFunction
 
+    /** 
+     * Transport function specifically for audio (optional).
+     * If provided, audio will be sent via this function.
+     * If not provided, audio will be sent via `send`.
+     */
+    sendAudio?: SendFunction
+
     /** Rate limiting configuration (optional) */
     rateLimit?: Partial<RateLimitConfig>
 
-    /** Audio configuration (optional, only used in audio mode) */
+    /** Audio configuration (optional) */
     audioConfig?: Partial<AudioConfig>
 
     /** Callback when request succeeds */
@@ -165,6 +144,12 @@ export interface AiInputProps {
 
     /** Callback when request fails */
     onError?: (error: Error) => void
+
+    /** 
+     * Callback when audio transcription is received.
+     * Use this to set the text in the input after transcription.
+     */
+    onTranscription?: (text: string) => void
 
     // Headless API
     /** 
@@ -174,17 +159,8 @@ export interface AiInputProps {
     children?: (props: AiInputRenderProps) => ReactNode
 
     // Default UI props
-    /** Placeholder text for input (text mode only) */
+    /** Placeholder text for input */
     placeholder?: string
-
-    /** Label for submit button (text mode only) */
-    submitLabel?: string
-
-    /** Label for record button (audio mode only) */
-    recordLabel?: string
-
-    /** Label for stop button (audio mode only) */
-    stopLabel?: string
 
     /** Additional CSS classes for the container */
     className?: string
@@ -234,9 +210,11 @@ export interface UseAudioRecorderReturn {
     isSupported: boolean
     duration: number
     audioBlob: Blob | null
+    audioLevels: number[]
     error: Error | null
     startRecording: () => Promise<void>
     stopRecording: () => void
+    cancelRecording: () => void
     reset: () => void
 }
 
@@ -244,15 +222,20 @@ export interface UseAudioRecorderReturn {
  * Options for useAiInput hook
  */
 export interface UseAiInputOptions {
-    mode: AiInputMode
     send: SendFunction
+    sendAudio?: SendFunction
     rateLimit?: Partial<RateLimitConfig>
     audioConfig?: Partial<AudioConfig>
     onSuccess?: (result: unknown) => void
     onError?: (error: Error) => void
+    onTranscription?: (text: string) => void
 }
 
 /**
  * Return type for useAiInput hook
  */
 export type UseAiInputReturn = AiInputRenderProps
+
+// Legacy type alias for backwards compatibility
+/** @deprecated Use AiInputProps without mode */
+export type AiInputMode = 'text' | 'audio'

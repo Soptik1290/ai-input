@@ -8,8 +8,7 @@ export { useRateLimiter } from './hooks/useRateLimiter'
 
 // Types
 export type {
-    // Modes & States
-    AiInputMode,
+    // States
     AiInputState,
 
     // Configuration
@@ -30,4 +29,7 @@ export type {
     UseAudioRecorderReturn,
     UseAiInputOptions,
     UseAiInputReturn,
+
+    // Legacy
+    AiInputMode,
 } from './types'

@@ -23,18 +23,20 @@ const DEFAULT_AUDIO_CONFIG: AudioConfig = {
 /**
  * Main hook for AI input functionality.
  * Combines rate limiting, audio recording, and API communication.
+ * Unified design - text and audio in single component.
  * 
  * @param options - Configuration options
  * @returns Complete state and controls for AI input
  */
 export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
     const {
-        mode,
         send,
+        sendAudio,
         rateLimit = {},
         audioConfig = {},
         onSuccess,
         onError,
+        onTranscription,
     } = options
 
     const rateLimitConfig = { ...DEFAULT_RATE_LIMIT, ...rateLimit }
@@ -49,12 +51,9 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
     // Rate limiter
     const rateLimiter = useRateLimiter(rateLimitConfig)
 
-    // Audio recorder with callback to auto-submit
+    // Audio recorder
     const audioRecorder = useAudioRecorder({
         ...audioConfigMerged,
-        onRecordingComplete: useCallback((blob: Blob) => {
-            // Will be handled in stopRecording
-        }, []),
     })
 
     // Update state based on rate limiter
@@ -97,6 +96,8 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
             setResult(response)
             setState('success')
             onSuccess?.(response)
+            // Clear text after successful send
+            setText('')
         } catch (err) {
             const error = err instanceof Error ? err : new Error('Request failed')
             setError(error)
@@ -116,17 +117,30 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
         rateLimiter.recordRequest()
 
         try {
-            const response = await send(blob)
+            // Use sendAudio if provided, otherwise use send
+            const sendFn = sendAudio || send
+            const response = await sendFn(blob)
             setResult(response)
             setState('success')
             onSuccess?.(response)
+
+            // Handle transcription if callback provided
+            if (onTranscription && response && typeof response === 'object') {
+                const res = response as Record<string, unknown>
+                // Try common transcription response formats
+                const transcriptionText = res.text || res.transcription || res.transcript
+                if (typeof transcriptionText === 'string') {
+                    setText(transcriptionText)
+                    onTranscription(transcriptionText)
+                }
+            }
         } catch (err) {
             const error = err instanceof Error ? err : new Error('Request failed')
             setError(error)
             setState('error')
             onError?.(error)
         }
-    }, [rateLimiter, send, onSuccess, onError])
+    }, [rateLimiter, send, sendAudio, onSuccess, onError, onTranscription])
 
     // Start recording
     const startRecording = useCallback(async () => {
@@ -141,9 +155,7 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
         audioRecorder.stopRecording()
 
         // Wait for blob to be available, then submit
-        // The MediaRecorder onstop event will set audioBlob
         const checkAndSubmit = () => {
-            // Use a small delay to ensure blob is ready
             setTimeout(() => {
                 if (audioRecorder.audioBlob) {
                     submitAudio(audioRecorder.audioBlob)
@@ -153,13 +165,20 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
         checkAndSubmit()
     }, [audioRecorder, submitAudio])
 
-    // Submit based on mode
+    // Cancel recording (discard audio)
+    const cancelRecording = useCallback(() => {
+        audioRecorder.cancelRecording()
+        setState('idle')
+    }, [audioRecorder])
+
+    // Submit based on current state
     const submit = useCallback(() => {
-        if (mode === 'text') {
+        if (audioRecorder.isRecording) {
+            stopRecording()
+        } else if (text.trim()) {
             submitText()
         }
-        // Audio mode uses startRecording/stopRecording
-    }, [mode, submitText])
+    }, [audioRecorder.isRecording, text, stopRecording, submitText])
 
     // Reset all state
     const reset = useCallback(() => {
@@ -175,8 +194,7 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
     const canSubmit =
         rateLimiter.canRequest &&
         state !== 'loading' &&
-        state !== 'recording' &&
-        (mode === 'text' ? text.trim().length > 0 : true)
+        (audioRecorder.isRecording || text.trim().length > 0)
 
     return {
         // State
@@ -184,18 +202,20 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
         error,
         result,
 
-        // Text mode
+        // Text
         text,
         setText,
         submit,
         canSubmit,
 
-        // Audio mode
+        // Audio
         isRecording: audioRecorder.isRecording,
         startRecording,
         stopRecording,
+        cancelRecording,
         recordingDuration: audioRecorder.duration,
         maxRecordingDuration: audioConfigMerged.maxDurationMs,
+        audioLevels: audioRecorder.audioLevels,
 
         // Rate limiting
         cooldownRemaining: rateLimiter.cooldownRemaining,
