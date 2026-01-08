@@ -1,73 +1,174 @@
 # ai-input-react
 
-Publikovatelný React balíček pro text/audio vstup s AI API integrací. Framework-agnostický, funguje s Next.js, Vite, PHP a jakýmkoli React setupem.
+React komponenta pro text/audio vstup s AI API integrací. Framework-agnostická – funguje s Next.js, Vite, Laravel a jakýmkoli React setupem.
 
-## Instalace
+## Quick Start (Next.js)
+
+Minimální setup s předkompilovaným CSS – **nevyžaduje Tailwind ani shadcn/ui**.
 
 ```bash
+# 1. Vytvoření Next.js aplikace
+npx create-next-app@latest my-app
+cd my-app
+
+# 2. Instalace balíčku
 npm install ai-input-react
 ```
 
-## Požadavky
+```tsx
+// app/page.tsx (App Router)
+'use client'
 
-Hostitelský projekt musí mít:
+import { AiInput } from 'ai-input-react'
+import 'ai-input-react/styles.css'
 
-1. **React 19+** (kompatibilní i s React 18)
-2. **Tailwind CSS 4+** nakonfigurovaný
-3. **shadcn/ui** inicializovaný s tímto presetem:
+export default function Home() {
+  return (
+    <AiInput
+      mode="text"
+      send={async (input) => {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          body: JSON.stringify({ message: input }),
+        })
+        return res.json()
+      }}
+      onSuccess={(result) => console.log('Response:', result)}
+    />
+  )
+}
+```
+
+---
+
+## Prepacked CSS (výchozí)
+
+Balíček obsahuje **předkompilované CSS** (`dist/styles.css`), které funguje okamžitě bez jakékoli konfigurace.
+
+### Import
+
+```tsx
+import 'ai-input-react/styles.css'
+```
+
+### Co je zahrnuto
+
+- Všechny styly pro `AiInput` komponentu (text i audio mode)
+- Dark theme (zinc base, amber accent)
+- Animace a transitions
+- Responzivní design
+
+### Výhody
+
+- ✅ Žádná konfigurace Tailwindu
+- ✅ Žádná závislost na shadcn/ui
+- ✅ Funguje v jakékoli React aplikaci
+- ✅ Minimální bundle size (~3KB minified)
+
+---
+
+## Pokročilé použití: Tailwind + shadcn (volitelné)
+
+> ⚠️ Tato sekce je určena pro **pokročilé uživatele**, kteří chtějí plnou kontrolu nad designem.
+
+### Kdy použít
+
+- Chcete přepsat výchozí styly
+- Potřebujete konzistenci s vaším design systémem
+- Používáte headless/primitive komponentu s vlastním UI
+
+### Požadavky
+
+1. **Tailwind CSS 4+**
+2. **shadcn/ui** inicializovaný s tímto presetem:
 
 ```bash
 npx shadcn@latest init \
   --preset "https://ui.shadcn.com/init?base=radix&style=maia&baseColor=zinc&theme=amber&iconLibrary=phosphor&font=inter&menuAccent=bold&menuColor=default&radius=small&template=next"
 ```
 
-> ⚠️ Komponenta používá Tailwind utility classes odpovídající tomuto presetu (zinc base, amber theme, small radius).
+### Použití bez prepacked CSS
 
-## Základní použití
+Při použití s Tailwindem **neimportujte** prepacked CSS:
+
+```tsx
+// ❌ NEPOUŽÍVAT s Tailwindem
+import 'ai-input-react/styles.css'
+
+// ✅ Tailwind zpracuje utility classes automaticky
+import { AiInput } from 'ai-input-react'
+```
+
+### Headless použití (vlastní UI)
+
+Pro úplnou kontrolu nad UI použijte render prop pattern:
 
 ```tsx
 import { AiInput } from 'ai-input-react'
 
-function ChatComponent() {
-  const handleSend = async (input: string | Blob) => {
-    const response = await fetch('/api/chat', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${yourToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ message: input }),
-    })
-    return response.json()
-  }
-
+function CustomUI() {
   return (
-    <AiInput
-      mode="text"
-      send={handleSend}
-      onSuccess={(result) => console.log('Response:', result)}
-      onError={(error) => console.error('Error:', error)}
-    />
+    <AiInput mode="text" send={sendFn}>
+      {({ text, setText, submit, state, error }) => (
+        <div className="your-custom-styles">
+          <textarea
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+          />
+          <button onClick={submit} disabled={state === 'loading'}>
+            {state === 'loading' ? 'Odesílám...' : 'Odeslat'}
+          </button>
+          {error && <p>{error.message}</p>}
+        </div>
+      )}
+    </AiInput>
   )
 }
 ```
 
-## Next.js Integrace
+---
 
-### Pages Router
+## Jaký setup zvolit?
+
+| Situace | Doporučení |
+|---------|------------|
+| Rychlý prototyp | Prepacked CSS |
+| Nový projekt bez Tailwindu | Prepacked CSS |
+| Existující projekt s Tailwindem | Tailwind (bez prepacked CSS) |
+| Vlastní design systém | Headless + vlastní UI |
+| Plná kontrola nad styly | Tailwind + shadcn |
+
+**Pro většinu uživatelů doporučujeme prepacked CSS.**
+
+---
+
+## Použití s Laravel (Inertia / Vite)
+
+Balíček funguje v Laravel projektech s React (Vite + Inertia).
+
+### Setup
+
+```bash
+# V Laravel projektu
+npm install ai-input-react
+```
 
 ```tsx
-// pages/chat.tsx
+// resources/js/Pages/Chat.tsx
 import { AiInput } from 'ai-input-react'
+import 'ai-input-react/styles.css'
 
-export default function ChatPage() {
+export default function Chat({ csrfToken }) {
   return (
     <AiInput
       mode="text"
       send={async (input) => {
-        // Volání vašeho API route
         const res = await fetch('/api/chat', {
           method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'Content-Type': 'application/json',
+          },
           body: JSON.stringify({ message: input }),
         })
         return res.json()
@@ -77,48 +178,15 @@ export default function ChatPage() {
 }
 ```
 
-### App Router
-
-```tsx
-// app/chat/page.tsx
-'use client'
-
-import { AiInput } from 'ai-input-react'
-
-export default function ChatPage() {
-  return (
-    <AiInput
-      mode="text"
-      send={async (input) => {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          body: JSON.stringify({ message: input }),
-        })
-        return res.json()
-      }}
-    />
-  )
-}
-```
+---
 
 ## Příklad: GPT-5-mini (Text)
 
 ```tsx
 import { AiInput } from 'ai-input-react'
+import 'ai-input-react/styles.css'
 
-function GPT5Input() {
-  // Token získaný z vašeho backendu (NE hardcodovaný!)
-  const [token, setToken] = useState<string | null>(null)
-
-  useEffect(() => {
-    // Získejte krátkodobý token z vašeho API
-    fetch('/api/auth/token').then(res => res.json()).then(data => {
-      setToken(data.token)
-    })
-  }, [])
-
-  if (!token) return <div>Loading...</div>
-
+function GPT5Input({ token }) {
   return (
     <AiInput
       mode="text"
@@ -138,9 +206,7 @@ function GPT5Input() {
         })
         return response.json()
       }}
-      onSuccess={(result) => {
-        console.log('GPT Response:', result)
-      }}
+      onSuccess={(result) => console.log('GPT Response:', result)}
       rateLimit={{
         cooldownMs: 2000,
         maxRequests: 5,
@@ -155,25 +221,16 @@ function GPT5Input() {
 
 ```tsx
 import { AiInput } from 'ai-input-react'
+import 'ai-input-react/styles.css'
 
-function WhisperInput() {
-  const [token, setToken] = useState<string | null>(null)
-
-  useEffect(() => {
-    fetch('/api/auth/token').then(res => res.json()).then(data => {
-      setToken(data.token)
-    })
-  }, [])
-
-  if (!token) return <div>Loading...</div>
-
+function WhisperInput({ token }) {
   return (
     <AiInput
       mode="audio"
       recordLabel="Nahrát"
       stopLabel="Stop"
       audioConfig={{
-        maxDurationMs: 30000, // Max 30 sekund
+        maxDurationMs: 30000,
         mimeTypes: ['audio/webm', 'audio/mp4'],
       }}
       send={async (input) => {
@@ -184,70 +241,18 @@ function WhisperInput() {
 
         const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-          },
+          headers: { 'Authorization': `Bearer ${token}` },
           body: formData,
         })
         return response.json()
       }}
-      onSuccess={(result) => {
-        console.log('Transkripce:', result)
-      }}
+      onSuccess={(result) => console.log('Transkripce:', result)}
     />
   )
 }
 ```
 
-## Headless API (Vlastní UI)
-
-Pro úplnou kontrolu nad UI použijte render prop pattern:
-
-```tsx
-import { AiInput } from 'ai-input-react'
-
-function CustomUI() {
-  return (
-    <AiInput mode="text" send={sendFn}>
-      {({
-        text,
-        setText,
-        submit,
-        state,
-        error,
-        isRecording,
-        startRecording,
-        stopRecording,
-        recordingDuration,
-        cooldownRemaining,
-        requestsRemaining,
-      }) => (
-        <div className="my-custom-component">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="my-input"
-          />
-          
-          <button
-            onClick={submit}
-            disabled={state === 'loading' || !text.trim()}
-            className="my-button"
-          >
-            {state === 'loading' ? 'Odesílám...' : 'Odeslat'}
-          </button>
-          
-          {error && <p className="error">{error.message}</p>}
-          
-          {cooldownRemaining > 0 && (
-            <p>Počkejte {Math.ceil(cooldownRemaining / 1000)}s</p>
-          )}
-        </div>
-      )}
-    </AiInput>
-  )
-}
-```
+---
 
 ## Použití hooků samostatně
 
@@ -264,9 +269,7 @@ function CustomComponent() {
   // Nebo pouze audio recorder
   const recorder = useAudioRecorder({
     maxDurationMs: 60000,
-    onRecordingComplete: (blob) => {
-      console.log('Recording complete:', blob)
-    },
+    onRecordingComplete: (blob) => console.log('Recording complete:', blob),
   })
 
   // Nebo pouze rate limiter
@@ -277,6 +280,8 @@ function CustomComponent() {
   })
 }
 ```
+
+---
 
 ## API Reference
 
@@ -329,25 +334,29 @@ interface AiInputRenderProps {
 }
 ```
 
+---
+
 ## ⚠️ Bezpečnostní upozornění
 
 > **NIKDY neukládejte tajné API klíče ve frontendovém kódu!**
 
 Tento balíček je navržen pro browser-side použití, kde jsou tokeny poskytnuty z hostitelské aplikace.
 
-### Doporučený přístup:
+### Doporučený přístup
 
 1. **Krátkodobé tokeny**: Generujte tokeny s omezenou platností na vašem backendu
-2. **Proxy API**: Vytvořte API route ve vaší aplikaci, která přidá autentizaci
+2. **Proxy API**: Vytvořte API route, která přidá autentizaci
 3. **Session-based auth**: Použijte session cookies pro ověření
 
 ```tsx
-// ❌ ŠPATNĚ - nikdy nedělejte
+// ❌ ŠPATNĚ
 const API_KEY = 'sk-...' // NEBEZPEČNÉ!
 
-// ✅ SPRÁVNĚ - token z backendu
+// ✅ SPRÁVNĚ
 const token = await getTokenFromBackend()
 ```
+
+---
 
 ## Podpora prohlížečů
 
@@ -360,38 +369,7 @@ Audio nahrávání vyžaduje:
 - Podporu `MediaRecorder` API
 - Přístup k mikrofonu (HTTPS nebo localhost)
 
-## Použití mimo Next.js
-
-Balíček je framework-agnostický a funguje v jakékoli React aplikaci:
-
-- **Vite**: Přímo použitelný
-- **Create React App**: Přímo použitelný
-- **PHP/Laravel**: Použijte jako standalone React component
-- **Inertia.js**: Použijte v React pages
-
-```jsx
-// PHP + React (např. Laravel s Inertia)
-import { AiInput } from 'ai-input-react'
-
-export default function ChatWidget({ csrfToken }) {
-  return (
-    <AiInput
-      mode="text"
-      send={async (input) => {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'X-CSRF-TOKEN': csrfToken,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ message: input }),
-        })
-        return res.json()
-      }}
-    />
-  )
-}
-```
+---
 
 ## License
 

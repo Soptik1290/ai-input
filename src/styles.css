@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 
+ * ai-input-react Prepacked Styles
+ * 
+ * This file contains all necessary styles for the AiInput component.
+ * It is processed by Tailwind CSS during build to generate dist/styles.css
+ * 
+ * Users can import the prepacked CSS without needing Tailwind:
+ * import 'ai-input-react/styles.css'
+ */
