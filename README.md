@@ -1,22 +1,27 @@
 # ai-input-react
 
-React komponenta pro text/audio vstup s AI API integrací. Framework-agnostická – funguje s Next.js, Vite, Laravel a jakýmkoli React setupem.
+A React component for text/audio input with AI API integration. Framework-agnostic – works with Next.js, Vite, Laravel, and any React setup.
+
+## Features
+
+- 🎤 **Unified Input** – Text and audio in a single component
+- 🌊 **Real-time Waveform** – Audio visualization during recording
+- 🎨 **Prepacked CSS** – Works out of the box, no Tailwind needed
+- 🔌 **Headless Mode** – Full control with render props
+- ⚡ **Framework Agnostic** – Next.js, Vite, Laravel, etc.
+
+---
 
 ## Quick Start (Next.js)
 
-Minimální setup s předkompilovaným CSS – **nevyžaduje Tailwind ani shadcn/ui**.
-
 ```bash
-# 1. Vytvoření Next.js aplikace
 npx create-next-app@latest my-app
 cd my-app
-
-# 2. Instalace balíčku
 npm install ai-input-react
 ```
 
 ```tsx
-// app/page.tsx (App Router)
+// app/page.tsx
 'use client'
 
 import { AiInput } from 'ai-input-react'
@@ -40,103 +45,106 @@ export default function Home() {
 
 ---
 
-## Prepacked CSS (výchozí)
+## Quick Start (Laravel + Inertia)
 
-Balíček obsahuje **předkompilované CSS** (`dist/styles.css`), které funguje okamžitě bez jakékoli konfigurace.
-
-### Import
-
-```tsx
-import 'ai-input-react/styles.css'
+```bash
+# In your Laravel project
+npm install ai-input-react
 ```
 
-### Co je zahrnuto
-
-- Unified input (text + audio v jednom)
-- Waveform vizualizace při nahrávání
-- Dark theme (zinc base, amber accent)
-- Animace a transitions
-
-### Výhody
-
-- ✅ Žádná konfigurace Tailwindu
-- ✅ Žádná závislost na shadcn/ui
-- ✅ Funguje v jakékoli React aplikaci
-- ✅ Minimální bundle size (~10KB)
-
----
-
-## Pokročilé použití: Tailwind + shadcn (volitelné)
-
-> ⚠️ Tato sekce je určena pro **pokročilé uživatele**, kteří chtějí plnou kontrolu nad designem.
-
-### Použití bez prepacked CSS
-
-Při použití s Tailwindem **neimportujte** prepacked CSS:
-
 ```tsx
-// ❌ NEPOUŽÍVAT s Tailwindem
+// resources/js/Pages/Chat.tsx
+import { AiInput } from 'ai-input-react'
 import 'ai-input-react/styles.css'
 
-// ✅ Tailwind zpracuje utility classes automaticky
-import { AiInput } from 'ai-input-react'
-```
-
-### Headless použití (vlastní UI)
-
-Pro úplnou kontrolu nad UI použijte render prop pattern:
-
-```tsx
-import { AiInput } from 'ai-input-react'
-
-function CustomUI() {
+export default function Chat({ csrfToken }: { csrfToken: string }) {
   return (
-    <AiInput send={sendFn}>
-      {({ text, setText, submit, state, isRecording, audioLevels, startRecording, stopRecording }) => (
-        <div className="your-custom-styles">
-          {isRecording ? (
-            <MyWaveform levels={audioLevels} />
-          ) : (
-            <textarea value={text} onChange={(e) => setText(e.target.value)} />
-          )}
-          <button onClick={isRecording ? stopRecording : submit}>
-            {state === 'loading' ? 'Odesílám...' : isRecording ? 'Stop' : 'Odeslat'}
-          </button>
-          <button onClick={startRecording}>🎤</button>
-        </div>
-      )}
-    </AiInput>
+    <AiInput
+      send={async (input) => {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'X-CSRF-TOKEN': csrfToken,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ message: input }),
+        })
+        return res.json()
+      }}
+      onSuccess={(result) => console.log('Response:', result)}
+    />
   )
 }
 ```
 
 ---
 
-## Jaký setup zvolit?
+## Quick Start (Vite)
 
-| Situace | Doporučení |
-|---------|------------|
-| Rychlý prototyp | Prepacked CSS |
-| Nový projekt bez Tailwindu | Prepacked CSS |
-| Existující projekt s Tailwindem | Tailwind (bez prepacked CSS) |
-| Vlastní design systém | Headless + vlastní UI |
+```bash
+npm create vite@latest my-app -- --template react-ts
+cd my-app
+npm install ai-input-react
+```
 
-**Pro většinu uživatelů doporučujeme prepacked CSS.**
+```tsx
+// src/App.tsx
+import { AiInput } from 'ai-input-react'
+import 'ai-input-react/styles.css'
+
+export default function App() {
+  return (
+    <AiInput
+      send={async (input) => {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          body: JSON.stringify({ message: input }),
+        })
+        return res.json()
+      }}
+    />
+  )
+}
+```
 
 ---
 
-## Příklad: Text + Audio s GPT a Whisper
+## Prepacked CSS
+
+The package includes **prepacked CSS** that works immediately without any configuration.
+
+```tsx
+import 'ai-input-react/styles.css'
+```
+
+### What's Included
+
+- Unified input design (text + audio)
+- Real-time waveform visualization
+- Dark theme (zinc base, amber accent)
+- Smooth animations and transitions
+
+### Benefits
+
+- ✅ No Tailwind configuration needed
+- ✅ No shadcn/ui dependency
+- ✅ Works in any React application
+- ✅ ~10KB minified
+
+---
+
+## Example: GPT + Whisper
 
 ```tsx
 import { AiInput } from 'ai-input-react'
 import 'ai-input-react/styles.css'
 
-function ChatInput({ token }) {
+function ChatInput({ token }: { token: string }) {
   return (
     <AiInput
       placeholder="Ask anything..."
       send={async (input) => {
-        // Text input -> GPT
+        // Text input → GPT
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -144,18 +152,17 @@ function ChatInput({ token }) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-5-mini',
+            model: 'gpt-4',
             messages: [{ role: 'user', content: input as string }],
           }),
         })
         return response.json()
       }}
       sendAudio={async (blob) => {
-        // Audio input -> Whisper
+        // Audio input → Whisper
         const formData = new FormData()
         formData.append('file', blob, 'audio.webm')
         formData.append('model', 'whisper-1')
-        formData.append('language', 'cs')
 
         const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
           method: 'POST',
@@ -173,7 +180,37 @@ function ChatInput({ token }) {
 
 ---
 
-## Použití hooků samostatně
+## Headless Mode (Custom UI)
+
+Use render props for full control over the UI:
+
+```tsx
+import { AiInput } from 'ai-input-react'
+
+function CustomUI() {
+  return (
+    <AiInput send={sendFn}>
+      {({ text, setText, submit, state, isRecording, audioLevels, startRecording, stopRecording }) => (
+        <div className="your-custom-styles">
+          {isRecording ? (
+            <MyWaveform levels={audioLevels} />
+          ) : (
+            <textarea value={text} onChange={(e) => setText(e.target.value)} />
+          )}
+          <button onClick={isRecording ? stopRecording : submit}>
+            {state === 'loading' ? 'Sending...' : isRecording ? 'Stop' : 'Send'}
+          </button>
+          <button onClick={startRecording}>🎤</button>
+        </div>
+      )}
+    </AiInput>
+  )
+}
+```
+
+---
+
+## Using Hooks Separately
 
 ```tsx
 import { useAiInput, useAudioRecorder, useRateLimiter } from 'ai-input-react'
@@ -184,13 +221,13 @@ function CustomComponent() {
     rateLimit: { cooldownMs: 1000 },
   })
 
-  // Nebo pouze audio recorder
+  // Audio recorder only
   const recorder = useAudioRecorder({
     maxDurationMs: 60000,
     onRecordingComplete: (blob) => console.log('Recording complete:', blob),
   })
 
-  // Nebo pouze rate limiter
+  // Rate limiter only
   const rateLimiter = useRateLimiter({
     cooldownMs: 500,
     maxRequests: 10,
@@ -207,21 +244,21 @@ function CustomComponent() {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `send` | `(input: string \| Blob) => Promise<any>` | required | Transport funkce pro text |
-| `sendAudio` | `(blob: Blob) => Promise<any>` | - | Volitelný transport pro audio |
-| `rateLimit` | `RateLimitConfig` | `{ cooldownMs: 1000, ... }` | Rate limiting |
-| `audioConfig` | `AudioConfig` | `{ maxDurationMs: 60000, ... }` | Audio nastavení |
-| `onSuccess` | `(result: any) => void` | - | Callback při úspěchu |
-| `onError` | `(error: Error) => void` | - | Callback při chybě |
-| `onTranscription` | `(text: string) => void` | - | Callback po audio transkripci |
+| `send` | `(input: string \| Blob) => Promise<any>` | required | Transport function for text |
+| `sendAudio` | `(blob: Blob) => Promise<any>` | - | Optional transport for audio |
+| `rateLimit` | `RateLimitConfig` | `{ cooldownMs: 1000, ... }` | Rate limiting config |
+| `audioConfig` | `AudioConfig` | `{ maxDurationMs: 60000, ... }` | Audio settings |
+| `onSuccess` | `(result: any) => void` | - | Success callback |
+| `onError` | `(error: Error) => void` | - | Error callback |
+| `onTranscription` | `(text: string) => void` | - | Audio transcription callback |
 | `children` | `(props: AiInputRenderProps) => ReactNode` | - | Headless render prop |
-| `placeholder` | `string` | `'Ask anything...'` | Placeholder textu |
-| `className` | `string` | - | CSS třídy pro container |
-| `disabled` | `boolean` | `false` | Zakázat vstup |
+| `placeholder` | `string` | `'Ask anything...'` | Input placeholder |
+| `className` | `string` | - | CSS classes for container |
+| `disabled` | `boolean` | `false` | Disable input |
 
 ### `AiInputRenderProps`
 
-Při použití render prop (`children`) získáte tyto props:
+When using render props (`children`), you get:
 
 ```typescript
 interface AiInputRenderProps {
@@ -242,7 +279,7 @@ interface AiInputRenderProps {
   cancelRecording: () => void
   recordingDuration: number
   maxRecordingDuration: number
-  audioLevels: number[]  // Pro waveform vizualizaci
+  audioLevels: number[]
   
   // Rate limiting
   cooldownRemaining: number
@@ -254,39 +291,39 @@ interface AiInputRenderProps {
 
 ---
 
-## ⚠️ Bezpečnostní upozornění
+## ⚠️ Security Warning
 
-> **NIKDY neukládejte tajné API klíče ve frontendovém kódu!**
+> **Never store secret API keys in frontend code!**
 
-Tento balíček je navržen pro browser-side použití, kde jsou tokeny poskytnuty z hostitelské aplikace.
+This package is designed for browser-side use where tokens are provided by the host application.
 
-### Doporučený přístup
+### Recommended Approach
 
-1. **Krátkodobé tokeny**: Generujte tokeny s omezenou platností na vašem backendu
-2. **Proxy API**: Vytvořte API route, která přidá autentizaci
-3. **Session-based auth**: Použijte session cookies pro ověření
+1. **Short-lived tokens**: Generate tokens with limited validity on your backend
+2. **Proxy API**: Create an API route that adds authentication
+3. **Session-based auth**: Use session cookies for verification
 
 ```tsx
-// ❌ ŠPATNĚ
-const API_KEY = 'sk-...' // NEBEZPEČNÉ!
+// ❌ WRONG
+const API_KEY = 'sk-...' // DANGEROUS!
 
-// ✅ SPRÁVNĚ
+// ✅ CORRECT
 const token = await getTokenFromBackend()
 ```
 
 ---
 
-## Podpora prohlížečů
+## Browser Support
 
 - Chrome 49+
 - Firefox 36+
 - Safari 14.1+
 - Edge 79+
 
-Audio nahrávání vyžaduje:
-- Podporu `MediaRecorder` API
-- Web Audio API pro waveform
-- Přístup k mikrofonu (HTTPS nebo localhost)
+Audio recording requires:
+- `MediaRecorder` API support
+- Web Audio API for waveform
+- Microphone access (HTTPS or localhost)
 
 ---
 
