@@ -25,7 +25,6 @@ import 'ai-input-react/styles.css'
 export default function Home() {
   return (
     <AiInput
-      mode="text"
       send={async (input) => {
         const res = await fetch('/api/chat', {
           method: 'POST',
@@ -53,39 +52,23 @@ import 'ai-input-react/styles.css'
 
 ### Co je zahrnuto
 
-- Všechny styly pro `AiInput` komponentu (text i audio mode)
+- Unified input (text + audio v jednom)
+- Waveform vizualizace při nahrávání
 - Dark theme (zinc base, amber accent)
 - Animace a transitions
-- Responzivní design
 
 ### Výhody
 
 - ✅ Žádná konfigurace Tailwindu
 - ✅ Žádná závislost na shadcn/ui
 - ✅ Funguje v jakékoli React aplikaci
-- ✅ Minimální bundle size (~3KB minified)
+- ✅ Minimální bundle size (~10KB)
 
 ---
 
 ## Pokročilé použití: Tailwind + shadcn (volitelné)
 
 > ⚠️ Tato sekce je určena pro **pokročilé uživatele**, kteří chtějí plnou kontrolu nad designem.
-
-### Kdy použít
-
-- Chcete přepsat výchozí styly
-- Potřebujete konzistenci s vaším design systémem
-- Používáte headless/primitive komponentu s vlastním UI
-
-### Požadavky
-
-1. **Tailwind CSS 4+**
-2. **shadcn/ui** inicializovaný s tímto presetem:
-
-```bash
-npx shadcn@latest init \
-  --preset "https://ui.shadcn.com/init?base=radix&style=maia&baseColor=zinc&theme=amber&iconLibrary=phosphor&font=inter&menuAccent=bold&menuColor=default&radius=small&template=next"
-```
 
 ### Použití bez prepacked CSS
 
@@ -108,17 +91,18 @@ import { AiInput } from 'ai-input-react'
 
 function CustomUI() {
   return (
-    <AiInput mode="text" send={sendFn}>
-      {({ text, setText, submit, state, error }) => (
+    <AiInput send={sendFn}>
+      {({ text, setText, submit, state, isRecording, audioLevels, startRecording, stopRecording }) => (
         <div className="your-custom-styles">
-          <textarea
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <button onClick={submit} disabled={state === 'loading'}>
-            {state === 'loading' ? 'Odesílám...' : 'Odeslat'}
+          {isRecording ? (
+            <MyWaveform levels={audioLevels} />
+          ) : (
+            <textarea value={text} onChange={(e) => setText(e.target.value)} />
+          )}
+          <button onClick={isRecording ? stopRecording : submit}>
+            {state === 'loading' ? 'Odesílám...' : isRecording ? 'Stop' : 'Odeslat'}
           </button>
-          {error && <p>{error.message}</p>}
+          <button onClick={startRecording}>🎤</button>
         </div>
       )}
     </AiInput>
@@ -136,63 +120,23 @@ function CustomUI() {
 | Nový projekt bez Tailwindu | Prepacked CSS |
 | Existující projekt s Tailwindem | Tailwind (bez prepacked CSS) |
 | Vlastní design systém | Headless + vlastní UI |
-| Plná kontrola nad styly | Tailwind + shadcn |
 
 **Pro většinu uživatelů doporučujeme prepacked CSS.**
 
 ---
 
-## Použití s Laravel (Inertia / Vite)
-
-Balíček funguje v Laravel projektech s React (Vite + Inertia).
-
-### Setup
-
-```bash
-# V Laravel projektu
-npm install ai-input-react
-```
-
-```tsx
-// resources/js/Pages/Chat.tsx
-import { AiInput } from 'ai-input-react'
-import 'ai-input-react/styles.css'
-
-export default function Chat({ csrfToken }) {
-  return (
-    <AiInput
-      mode="text"
-      send={async (input) => {
-        const res = await fetch('/api/chat', {
-          method: 'POST',
-          headers: {
-            'X-CSRF-TOKEN': csrfToken,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ message: input }),
-        })
-        return res.json()
-      }}
-    />
-  )
-}
-```
-
----
-
-## Příklad: GPT-5-mini (Text)
+## Příklad: Text + Audio s GPT a Whisper
 
 ```tsx
 import { AiInput } from 'ai-input-react'
 import 'ai-input-react/styles.css'
 
-function GPT5Input({ token }) {
+function ChatInput({ token }) {
   return (
     <AiInput
-      mode="text"
-      placeholder="Zeptejte se GPT-5-mini..."
-      submitLabel="Odeslat"
+      placeholder="Ask anything..."
       send={async (input) => {
+        // Text input -> GPT
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
           method: 'POST',
           headers: {
@@ -206,36 +150,10 @@ function GPT5Input({ token }) {
         })
         return response.json()
       }}
-      onSuccess={(result) => console.log('GPT Response:', result)}
-      rateLimit={{
-        cooldownMs: 2000,
-        maxRequests: 5,
-        windowMs: 60000,
-      }}
-    />
-  )
-}
-```
-
-## Příklad: Whisper API (Audio)
-
-```tsx
-import { AiInput } from 'ai-input-react'
-import 'ai-input-react/styles.css'
-
-function WhisperInput({ token }) {
-  return (
-    <AiInput
-      mode="audio"
-      recordLabel="Nahrát"
-      stopLabel="Stop"
-      audioConfig={{
-        maxDurationMs: 30000,
-        mimeTypes: ['audio/webm', 'audio/mp4'],
-      }}
-      send={async (input) => {
+      sendAudio={async (blob) => {
+        // Audio input -> Whisper
         const formData = new FormData()
-        formData.append('file', input as Blob, 'audio.webm')
+        formData.append('file', blob, 'audio.webm')
         formData.append('model', 'whisper-1')
         formData.append('language', 'cs')
 
@@ -246,7 +164,8 @@ function WhisperInput({ token }) {
         })
         return response.json()
       }}
-      onSuccess={(result) => console.log('Transkripce:', result)}
+      onTranscription={(text) => console.log('Transcribed:', text)}
+      onSuccess={(result) => console.log('Response:', result)}
     />
   )
 }
@@ -261,7 +180,6 @@ import { useAiInput, useAudioRecorder, useRateLimiter } from 'ai-input-react'
 
 function CustomComponent() {
   const aiInput = useAiInput({
-    mode: 'text',
     send: async (input) => { /* ... */ },
     rateLimit: { cooldownMs: 1000 },
   })
@@ -289,19 +207,17 @@ function CustomComponent() {
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `mode` | `'text' \| 'audio'` | required | Režim vstupu |
-| `send` | `(input: string \| Blob) => Promise<any>` | required | Transport funkce |
-| `rateLimit` | `RateLimitConfig` | `{ cooldownMs: 1000, maxRequests: 10, windowMs: 60000 }` | Rate limiting |
-| `audioConfig` | `AudioConfig` | `{ maxDurationMs: 60000, mimeTypes: [...] }` | Audio nastavení |
+| `send` | `(input: string \| Blob) => Promise<any>` | required | Transport funkce pro text |
+| `sendAudio` | `(blob: Blob) => Promise<any>` | - | Volitelný transport pro audio |
+| `rateLimit` | `RateLimitConfig` | `{ cooldownMs: 1000, ... }` | Rate limiting |
+| `audioConfig` | `AudioConfig` | `{ maxDurationMs: 60000, ... }` | Audio nastavení |
 | `onSuccess` | `(result: any) => void` | - | Callback při úspěchu |
 | `onError` | `(error: Error) => void` | - | Callback při chybě |
+| `onTranscription` | `(text: string) => void` | - | Callback po audio transkripci |
 | `children` | `(props: AiInputRenderProps) => ReactNode` | - | Headless render prop |
-| `placeholder` | `string` | `'Type your message...'` | Placeholder (text mode) |
-| `submitLabel` | `string` | `'Send'` | Label tlačítka (text mode) |
-| `recordLabel` | `string` | `'Record'` | Label tlačítka (audio mode) |
-| `stopLabel` | `string` | `'Stop'` | Label stop tlačítka (audio mode) |
-| `disabled` | `boolean` | `false` | Zakázat vstup |
+| `placeholder` | `string` | `'Ask anything...'` | Placeholder textu |
 | `className` | `string` | - | CSS třídy pro container |
+| `disabled` | `boolean` | `false` | Zakázat vstup |
 
 ### `AiInputRenderProps`
 
@@ -313,18 +229,20 @@ interface AiInputRenderProps {
   error: Error | null
   result: unknown
   
-  // Text mode
+  // Text
   text: string
   setText: (value: string) => void
   submit: () => void
   canSubmit: boolean
   
-  // Audio mode
+  // Audio
   isRecording: boolean
   startRecording: () => Promise<void>
   stopRecording: () => void
+  cancelRecording: () => void
   recordingDuration: number
   maxRecordingDuration: number
+  audioLevels: number[]  // Pro waveform vizualizaci
   
   // Rate limiting
   cooldownRemaining: number
@@ -367,6 +285,7 @@ const token = await getTokenFromBackend()
 
 Audio nahrávání vyžaduje:
 - Podporu `MediaRecorder` API
+- Web Audio API pro waveform
 - Přístup k mikrofonu (HTTPS nebo localhost)
 
 ---

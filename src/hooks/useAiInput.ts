@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useRateLimiter } from './useRateLimiter'
 import { useAudioRecorder } from './useAudioRecorder'
 import type {
@@ -47,6 +47,9 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
     const [text, setText] = useState('')
     const [error, setError] = useState<Error | null>(null)
     const [result, setResult] = useState<unknown>(null)
+
+    // Ref to track if we're waiting to submit audio after recording stops
+    const pendingAudioSubmitRef = useRef(false)
 
     // Rate limiter
     const rateLimiter = useRateLimiter(rateLimitConfig)
@@ -142,6 +145,14 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
         }
     }, [rateLimiter, send, sendAudio, onSuccess, onError, onTranscription])
 
+    // Handle audio blob ready - submit if we were waiting
+    useEffect(() => {
+        if (pendingAudioSubmitRef.current && audioRecorder.audioBlob && !audioRecorder.isRecording) {
+            pendingAudioSubmitRef.current = false
+            submitAudio(audioRecorder.audioBlob)
+        }
+    }, [audioRecorder.audioBlob, audioRecorder.isRecording, submitAudio])
+
     // Start recording
     const startRecording = useCallback(async () => {
         if (!rateLimiter.canRequest) {
@@ -152,18 +163,10 @@ export function useAiInput(options: UseAiInputOptions): UseAiInputReturn {
 
     // Stop recording and submit
     const stopRecording = useCallback(() => {
+        // Mark that we want to submit audio when blob is ready
+        pendingAudioSubmitRef.current = true
         audioRecorder.stopRecording()
-
-        // Wait for blob to be available, then submit
-        const checkAndSubmit = () => {
-            setTimeout(() => {
-                if (audioRecorder.audioBlob) {
-                    submitAudio(audioRecorder.audioBlob)
-                }
-            }, 100)
-        }
-        checkAndSubmit()
-    }, [audioRecorder, submitAudio])
+    }, [audioRecorder])
 
     // Cancel recording (discard audio)
     const cancelRecording = useCallback(() => {
