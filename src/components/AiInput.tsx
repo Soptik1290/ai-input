@@ -13,20 +13,20 @@ function formatDuration(ms: number): string {
 }
 
 /**
- * Waveform visualization component
+ * Waveform visualization component - larger for toolbar
  */
 function Waveform({ levels, className = '' }: { levels: number[]; className?: string }) {
-    // Generate 12 bars if no levels provided
-    const bars = levels.length > 0 ? levels : Array(12).fill(0.1)
+    // Generate 16 bars if no levels provided
+    const bars = levels.length > 0 ? levels : Array(16).fill(0.1)
 
     return (
-        <div className={`flex items-center justify-center gap-0.5 h-8 ${className}`}>
+        <div className={`flex items-center justify-center gap-1 h-10 ${className}`}>
             {bars.map((level, i) => (
                 <div
                     key={i}
-                    className="w-1 bg-amber-500 rounded-full transition-all duration-75"
+                    className="w-1.5 bg-amber-500 rounded-full transition-all duration-75"
                     style={{
-                        height: `${Math.max(4, level * 32)}px`,
+                        height: `${Math.max(6, level * 40)}px`,
                     }}
                 />
             ))}
@@ -156,55 +156,29 @@ function DefaultUI({
                     ${disabled ? 'opacity-50' : ''}
                 `}
             >
-                {/* Recording waveform */}
-                {isRecording && (
-                    <div className="px-4 pt-4 pb-2">
-                        <div className="flex items-center justify-between mb-2">
-                            <Waveform levels={audioLevels} />
-                            <span className="text-sm text-zinc-400 font-mono ml-4">
-                                {formatDuration(recordingDuration)} / {formatDuration(maxRecordingDuration)}
-                            </span>
-                        </div>
-                    </div>
-                )}
-
-                {/* Text input area - hidden during recording */}
-                {!isRecording && (
-                    <textarea
-                        value={text}
-                        onChange={handleInput}
-                        onKeyDown={handleKeyDown}
-                        placeholder={placeholder}
-                        disabled={disabled || isLoading || isRateLimited}
-                        rows={1}
-                        className={`
-                            w-full px-4 pt-4 pb-2
-                            bg-transparent text-zinc-100 placeholder:text-zinc-500
-                            focus:outline-none
-                            disabled:cursor-not-allowed
-                            resize-none
-                            min-h-[56px]
-                        `}
-                        style={{ height: '56px' }}
-                    />
-                )}
+                {/* Text input area - always visible for live transcription */}
+                <textarea
+                    value={text}
+                    onChange={handleInput}
+                    onKeyDown={handleKeyDown}
+                    placeholder={isRecording ? 'Listening...' : placeholder}
+                    disabled={disabled || isLoading || isRateLimited}
+                    rows={1}
+                    className={`
+                        w-full px-4 pt-4 pb-2
+                        bg-transparent text-zinc-100 placeholder:text-zinc-500
+                        focus:outline-none
+                        disabled:cursor-not-allowed
+                        resize-none
+                        min-h-[56px]
+                    `}
+                    style={{ height: '56px' }}
+                />
 
                 {/* Toolbar */}
                 <div className="flex items-center justify-between px-3 pb-3 pt-1">
-                    {/* Left side - error/status */}
-                    <div className="text-sm">
-                        {hasError && error && (
-                            <span className="text-red-400">{error.message}</span>
-                        )}
-                        {isRateLimited && (
-                            <span className="text-amber-400">
-                                Wait {formatDuration(cooldownRemaining)}
-                            </span>
-                        )}
-                    </div>
-
-                    {/* Right side - action buttons */}
-                    <div className="flex items-center gap-2">
+                    {/* Left side - error/status or waveform during recording */}
+                    <div className="flex items-center gap-3">
                         {isRecording ? (
                             <>
                                 {/* Cancel recording */}
@@ -217,6 +191,32 @@ function DefaultUI({
                                     <XIcon className="h-5 w-5" />
                                 </button>
 
+                                {/* Waveform visualization */}
+                                <Waveform levels={audioLevels} />
+
+                                {/* Timer - just elapsed time */}
+                                <span className="text-sm text-zinc-400 font-mono">
+                                    {formatDuration(recordingDuration)}
+                                </span>
+                            </>
+                        ) : (
+                            <div className="text-sm">
+                                {hasError && error && (
+                                    <span className="text-red-400">{error.message}</span>
+                                )}
+                                {isRateLimited && (
+                                    <span className="text-amber-400">
+                                        Wait {formatDuration(cooldownRemaining)}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Right side - action buttons */}
+                    <div className="flex items-center gap-2">
+                        {isRecording ? (
+                            <>
                                 {/* Stop and send */}
                                 <button
                                     onClick={stopRecording}
