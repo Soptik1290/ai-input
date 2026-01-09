@@ -3,14 +3,20 @@
 /* 
  * ai-input-react Prepacked Styles
  * 
- * This file contains all necessary styles for the AiInput component.
- * Scans the source files to generate only the classes used.
+ * Automatic light/dark mode detection via:
+ * 1. prefers-color-scheme (system preference)
+ * 2. .dark class on html/body (Tailwind/Next.js/shadcn)
+ * 3. data-theme="dark" attribute (various UI libraries)
+ * 4. data-mode="dark" attribute
  */
 
 @source "./components/**/*.tsx";
 @source "./hooks/**/*.ts";
 
-/* Custom theme for shadcn maia preset - zinc base, amber accent */
+/* ============================================
+   Tailwind Theme Colors
+   ============================================ */
+
 @theme {
     --color-zinc-50: #fafafa;
     --color-zinc-100: #f4f4f5;
@@ -47,7 +53,276 @@
     --radius-xl: 0.75rem;
 }
 
-/* Animation for waveform bars */
+/* ============================================
+   Light Mode Styles (Default)
+   ============================================ */
+
+.ai-input-container {
+    background-color: #ffffff;
+    border-color: #e4e4e7;
+}
+
+.ai-input-container:focus-within {
+    border-color: rgba(245, 158, 11, 0.5);
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.05);
+}
+
+.ai-input-container.ai-input-recording {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.1);
+}
+
+.ai-input-textarea {
+    color: #18181b;
+}
+
+.ai-input-textarea::placeholder {
+    color: #a1a1aa;
+}
+
+.ai-input-text-muted {
+    color: #71717a;
+}
+
+.ai-input-text-error {
+    color: #ef4444;
+}
+
+.ai-input-text-warning {
+    color: #d97706;
+}
+
+.ai-input-btn-secondary {
+    color: #71717a;
+}
+
+.ai-input-btn-secondary:hover {
+    color: #d97706;
+    background-color: #f4f4f5;
+}
+
+.ai-input-btn-primary {
+    background-color: #f59e0b;
+    color: #ffffff;
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.25);
+}
+
+.ai-input-btn-primary:hover {
+    background-color: #fbbf24;
+}
+
+.ai-input-btn-disabled {
+    background-color: #f4f4f5;
+    color: #a1a1aa;
+}
+
+/* ============================================
+   Dark Mode - System Preference
+   ============================================ */
+
+@media (prefers-color-scheme: dark) {
+    .ai-input-container {
+        background-color: #18181b;
+        border-color: #27272a;
+    }
+
+    .ai-input-container:focus-within {
+        border-color: rgba(245, 158, 11, 0.5);
+        box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.05);
+    }
+
+    .ai-input-container.ai-input-recording {
+        border-color: rgba(239, 68, 68, 0.5);
+        box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.1);
+    }
+
+    .ai-input-textarea {
+        color: #f4f4f5;
+    }
+
+    .ai-input-textarea::placeholder {
+        color: #71717a;
+    }
+
+    .ai-input-text-muted {
+        color: #a1a1aa;
+    }
+
+    .ai-input-text-error {
+        color: #f87171;
+    }
+
+    .ai-input-text-warning {
+        color: #fbbf24;
+    }
+
+    .ai-input-btn-secondary {
+        color: #a1a1aa;
+    }
+
+    .ai-input-btn-secondary:hover {
+        color: #fbbf24;
+        background-color: #27272a;
+    }
+
+    .ai-input-btn-primary {
+        background-color: #f59e0b;
+        color: #18181b;
+        box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.25);
+    }
+
+    .ai-input-btn-primary:hover {
+        background-color: #fbbf24;
+    }
+
+    .ai-input-btn-disabled {
+        background-color: #27272a;
+        color: #71717a;
+    }
+}
+
+/* ============================================
+   Dark Mode - Class-based (.dark)
+   ============================================ */
+
+.dark .ai-input-container,
+[data-theme="dark"] .ai-input-container,
+[data-mode="dark"] .ai-input-container {
+    background-color: #18181b;
+    border-color: #27272a;
+}
+
+.dark .ai-input-container:focus-within,
+[data-theme="dark"] .ai-input-container:focus-within,
+[data-mode="dark"] .ai-input-container:focus-within {
+    border-color: rgba(245, 158, 11, 0.5);
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.05);
+}
+
+.dark .ai-input-container.ai-input-recording,
+[data-theme="dark"] .ai-input-container.ai-input-recording,
+[data-mode="dark"] .ai-input-container.ai-input-recording {
+    border-color: rgba(239, 68, 68, 0.5);
+    box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.1);
+}
+
+.dark .ai-input-textarea,
+[data-theme="dark"] .ai-input-textarea,
+[data-mode="dark"] .ai-input-textarea {
+    color: #f4f4f5;
+}
+
+.dark .ai-input-textarea::placeholder,
+[data-theme="dark"] .ai-input-textarea::placeholder,
+[data-mode="dark"] .ai-input-textarea::placeholder {
+    color: #71717a;
+}
+
+.dark .ai-input-text-muted,
+[data-theme="dark"] .ai-input-text-muted,
+[data-mode="dark"] .ai-input-text-muted {
+    color: #a1a1aa;
+}
+
+.dark .ai-input-text-error,
+[data-theme="dark"] .ai-input-text-error,
+[data-mode="dark"] .ai-input-text-error {
+    color: #f87171;
+}
+
+.dark .ai-input-text-warning,
+[data-theme="dark"] .ai-input-text-warning,
+[data-mode="dark"] .ai-input-text-warning {
+    color: #fbbf24;
+}
+
+.dark .ai-input-btn-secondary,
+[data-theme="dark"] .ai-input-btn-secondary,
+[data-mode="dark"] .ai-input-btn-secondary {
+    color: #a1a1aa;
+}
+
+.dark .ai-input-btn-secondary:hover,
+[data-theme="dark"] .ai-input-btn-secondary:hover,
+[data-mode="dark"] .ai-input-btn-secondary:hover {
+    color: #fbbf24;
+    background-color: #27272a;
+}
+
+.dark .ai-input-btn-primary,
+[data-theme="dark"] .ai-input-btn-primary,
+[data-mode="dark"] .ai-input-btn-primary {
+    background-color: #f59e0b;
+    color: #18181b;
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.25);
+}
+
+.dark .ai-input-btn-primary:hover,
+[data-theme="dark"] .ai-input-btn-primary:hover,
+[data-mode="dark"] .ai-input-btn-primary:hover {
+    background-color: #fbbf24;
+}
+
+.dark .ai-input-btn-disabled,
+[data-theme="dark"] .ai-input-btn-disabled,
+[data-mode="dark"] .ai-input-btn-disabled {
+    background-color: #27272a;
+    color: #71717a;
+}
+
+/* ============================================
+   Light Mode - Explicit Override (.light)
+   ============================================ */
+
+.light .ai-input-container,
+[data-theme="light"] .ai-input-container,
+[data-mode="light"] .ai-input-container {
+    background-color: #ffffff;
+    border-color: #e4e4e7;
+}
+
+.light .ai-input-textarea,
+[data-theme="light"] .ai-input-textarea,
+[data-mode="light"] .ai-input-textarea {
+    color: #18181b;
+}
+
+.light .ai-input-textarea::placeholder,
+[data-theme="light"] .ai-input-textarea::placeholder,
+[data-mode="light"] .ai-input-textarea::placeholder {
+    color: #a1a1aa;
+}
+
+.light .ai-input-text-muted,
+[data-theme="light"] .ai-input-text-muted,
+[data-mode="light"] .ai-input-text-muted {
+    color: #71717a;
+}
+
+.light .ai-input-btn-secondary,
+[data-theme="light"] .ai-input-btn-secondary,
+[data-mode="light"] .ai-input-btn-secondary {
+    color: #71717a;
+}
+
+.light .ai-input-btn-secondary:hover,
+[data-theme="light"] .ai-input-btn-secondary:hover,
+[data-mode="light"] .ai-input-btn-secondary:hover {
+    color: #d97706;
+    background-color: #f4f4f5;
+}
+
+.light .ai-input-btn-disabled,
+[data-theme="light"] .ai-input-btn-disabled,
+[data-mode="light"] .ai-input-btn-disabled {
+    background-color: #f4f4f5;
+    color: #a1a1aa;
+}
+
+/* ============================================
+   Animations
+   ============================================ */
+
 @keyframes wave {
 
     0%,
@@ -57,5 +332,17 @@
 
     50% {
         transform: scaleY(1);
+    }
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
     }
 }

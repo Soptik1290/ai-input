@@ -16,7 +16,6 @@ function formatDuration(ms: number): string {
  * Waveform visualization component with smooth animations
  */
 function Waveform({ levels, className = '' }: { levels: number[]; className?: string }) {
-    // Generate 16 bars if no levels provided
     const bars = levels.length > 0 ? levels : Array(16).fill(0.15)
 
     return (
@@ -48,7 +47,7 @@ function RecordingPulse() {
 }
 
 /**
- * Microphone icon (Phosphor style)
+ * Microphone icon
  */
 function MicIcon({ className = '' }: { className?: string }) {
     return (
@@ -59,7 +58,7 @@ function MicIcon({ className = '' }: { className?: string }) {
 }
 
 /**
- * Arrow up icon for submit
+ * Arrow up icon
  */
 function ArrowUpIcon({ className = '' }: { className?: string }) {
     return (
@@ -70,7 +69,7 @@ function ArrowUpIcon({ className = '' }: { className?: string }) {
 }
 
 /**
- * Stop icon (filled square)
+ * Stop icon
  */
 function StopIcon({ className = '' }: { className?: string }) {
     return (
@@ -81,7 +80,7 @@ function StopIcon({ className = '' }: { className?: string }) {
 }
 
 /**
- * X icon for cancel
+ * X icon
  */
 function XIcon({ className = '' }: { className?: string }) {
     return (
@@ -92,30 +91,21 @@ function XIcon({ className = '' }: { className?: string }) {
 }
 
 /**
- * Spinner for loading state
+ * Spinner
  */
 function Spinner({ className = '' }: { className?: string }) {
     return (
         <svg className={`animate-spin ${className}`} viewBox="0 0 24 24" fill="none">
-            <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-            />
-            <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            />
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
         </svg>
     )
 }
 
 /**
- * Default UI for the unified AiInput component
+ * Default UI - uses CSS variables for automatic theme detection
+ * The CSS variables are defined in styles.css and automatically switch
+ * based on prefers-color-scheme, .dark class, or data-theme attribute
  */
 function DefaultUI({
     text,
@@ -148,30 +138,25 @@ function DefaultUI({
         }
     }
 
-    // Auto-resize textarea
     const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
         setText(e.target.value)
-        // Reset height to auto to get the correct scrollHeight
         e.target.style.height = 'auto'
-        // Set height to scrollHeight, with min and max constraints
         e.target.style.height = `${Math.min(Math.max(e.target.scrollHeight, 56), 200)}px`
     }
 
     return (
-        <div className="w-full">
-            {/* Main container */}
+        <div className="ai-input w-full">
+            {/* Main container - uses CSS variables for theming */}
             <div
                 className={`
-                    bg-zinc-900 border rounded-xl
+                    ai-input-container
+                    border rounded-xl
                     transition-all duration-300 ease-out
-                    ${isRecording
-                        ? 'border-red-500/50 shadow-lg shadow-red-500/10'
-                        : 'border-zinc-800 focus-within:border-amber-500/50 focus-within:shadow-lg focus-within:shadow-amber-500/5'
-                    }
+                    ${isRecording ? 'ai-input-recording' : ''}
                     ${disabled ? 'opacity-50' : ''}
                 `}
             >
-                {/* Text input area - always visible for live transcription */}
+                {/* Text input */}
                 <textarea
                     value={text}
                     onChange={handleInput}
@@ -179,52 +164,39 @@ function DefaultUI({
                     placeholder={isRecording ? 'Listening...' : placeholder}
                     disabled={disabled || isLoading || isRateLimited}
                     rows={1}
-                    className={`
-                        w-full px-4 pt-4 pb-2
-                        bg-transparent text-zinc-100 placeholder:text-zinc-500
-                        focus:outline-none
-                        disabled:cursor-not-allowed
-                        resize-none
-                        min-h-[56px]
-                        transition-colors duration-200
-                    `}
+                    className="ai-input-textarea w-full px-4 pt-4 pb-2 bg-transparent focus:outline-none disabled:cursor-not-allowed resize-none min-h-[56px] transition-colors duration-200"
                     style={{ height: '56px' }}
                 />
 
                 {/* Toolbar */}
                 <div className="flex items-center justify-between px-3 pb-3 pt-1">
-                    {/* Left side - error/status or waveform during recording */}
+                    {/* Left side */}
                     <div className="flex items-center gap-2">
                         {isRecording ? (
                             <>
-                                {/* Cancel recording */}
                                 <button
                                     onClick={cancelRecording}
                                     disabled={disabled}
-                                    className="p-2 text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 rounded-lg transition-all duration-200 active:scale-95"
+                                    className="ai-input-btn-secondary p-2 rounded-lg transition-all duration-200 active:scale-95"
                                     aria-label="Cancel recording"
                                 >
                                     <XIcon className="h-5 w-5" />
                                 </button>
-
-                                {/* Recording indicator + Waveform */}
                                 <div className="flex items-center">
                                     <RecordingPulse />
                                     <Waveform levels={audioLevels} />
                                 </div>
-
-                                {/* Timer */}
-                                <span className="text-sm text-zinc-400 font-mono tabular-nums">
+                                <span className="ai-input-text-muted text-sm font-mono tabular-nums">
                                     {formatDuration(recordingDuration)}
                                 </span>
                             </>
                         ) : (
                             <div className="text-sm min-h-[28px] flex items-center">
                                 {hasError && error && (
-                                    <span className="text-red-400 animate-pulse">{error.message}</span>
+                                    <span className="ai-input-text-error animate-pulse">{error.message}</span>
                                 )}
                                 {isRateLimited && (
-                                    <span className="text-amber-400">
+                                    <span className="ai-input-text-warning">
                                         Wait {formatDuration(cooldownRemaining)}
                                     </span>
                                 )}
@@ -232,67 +204,41 @@ function DefaultUI({
                         )}
                     </div>
 
-                    {/* Right side - action buttons */}
+                    {/* Right side */}
                     <div className="flex items-center gap-2">
                         {isRecording ? (
-                            <>
-                                {/* Stop and send */}
-                                <button
-                                    onClick={stopRecording}
-                                    disabled={disabled}
-                                    className={`
-                                        p-2.5 rounded-full
-                                        bg-red-500 hover:bg-red-400
-                                        text-white
-                                        transition-all duration-200
-                                        hover:scale-105 active:scale-95
-                                        disabled:opacity-50 disabled:cursor-not-allowed
-                                        shadow-lg shadow-red-500/25
-                                    `}
-                                    aria-label="Stop recording"
-                                >
-                                    <StopIcon className="h-5 w-5" />
-                                </button>
-                            </>
+                            <button
+                                onClick={stopRecording}
+                                disabled={disabled}
+                                className="p-2.5 rounded-full bg-red-500 hover:bg-red-400 text-white transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-red-500/25"
+                                aria-label="Stop recording"
+                            >
+                                <StopIcon className="h-5 w-5" />
+                            </button>
                         ) : (
                             <>
-                                {/* Mic button */}
                                 <button
                                     onClick={startRecording}
                                     disabled={disabled || isLoading || isRateLimited}
-                                    className={`
-                                        p-2 text-zinc-400 
-                                        hover:text-amber-400 hover:bg-zinc-800
-                                        rounded-lg
-                                        transition-all duration-200
-                                        hover:scale-105 active:scale-95
-                                        disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
-                                    `}
+                                    className="ai-input-btn-secondary p-2 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
                                     aria-label="Start recording"
                                 >
                                     <MicIcon className="h-5 w-5" />
                                 </button>
-
-                                {/* Submit button */}
                                 <button
                                     onClick={submit}
                                     disabled={!canSubmit || disabled}
                                     className={`
-                                        p-2.5 rounded-full
-                                        transition-all duration-200
+                                        p-2.5 rounded-full transition-all duration-200
                                         disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100
                                         ${canSubmit
-                                            ? 'bg-amber-500 hover:bg-amber-400 text-zinc-900 hover:scale-105 active:scale-95 shadow-lg shadow-amber-500/25'
-                                            : 'bg-zinc-800 text-zinc-500'
+                                            ? 'ai-input-btn-primary hover:scale-105 active:scale-95 shadow-lg'
+                                            : 'ai-input-btn-disabled'
                                         }
                                     `}
                                     aria-label="Send message"
                                 >
-                                    {isLoading ? (
-                                        <Spinner className="h-5 w-5" />
-                                    ) : (
-                                        <ArrowUpIcon className="h-5 w-5" />
-                                    )}
+                                    {isLoading ? <Spinner className="h-5 w-5" /> : <ArrowUpIcon className="h-5 w-5" />}
                                 </button>
                             </>
                         )}
@@ -306,44 +252,12 @@ function DefaultUI({
 /**
  * AiInput Component
  * 
- * A React component for text/audio input with AI API integration.
- * Unified design with text input and audio recording in a single component.
+ * Text/audio input with automatic light/dark mode detection.
  * 
- * @example
- * // Basic usage
- * <AiInput
- *   send={async (input) => {
- *     const response = await fetch('/api/chat', {
- *       method: 'POST',
- *       body: JSON.stringify({ message: input }),
- *     })
- *     return response.json()
- *   }}
- *   onSuccess={(result) => console.log(result)}
- * />
- * 
- * @example
- * // With separate audio handler and transcription
- * <AiInput
- *   send={sendTextFn}
- *   sendAudio={sendAudioFn}
- *   onTranscription={(text) => console.log('Transcribed:', text)}
- * />
- * 
- * @example
- * // Headless mode with custom UI
- * <AiInput send={sendFn}>
- *   {({ text, setText, submit, state, isRecording, audioLevels }) => (
- *     <div>
- *       {isRecording ? (
- *         <MyWaveform levels={audioLevels} />
- *       ) : (
- *         <input value={text} onChange={(e) => setText(e.target.value)} />
- *       )}
- *       <button onClick={submit}>Send</button>
- *     </div>
- *   )}
- * </AiInput>
+ * **Theme Detection (in order of priority):**
+ * 1. `.dark` class on html/body (Tailwind/Next.js)
+ * 2. `data-theme="dark"` attribute
+ * 3. `prefers-color-scheme` system preference
  */
 export function AiInput({
     send,
@@ -368,19 +282,13 @@ export function AiInput({
         onTranscription,
     })
 
-    // Headless mode - render prop
     if (children) {
         return <>{children(inputState)}</>
     }
 
-    // Default UI
     return (
         <div className={`w-full ${className || ''}`}>
-            <DefaultUI
-                {...inputState}
-                placeholder={placeholder}
-                disabled={disabled}
-            />
+            <DefaultUI {...inputState} placeholder={placeholder} disabled={disabled} />
         </div>
     )
 }
