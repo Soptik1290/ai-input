@@ -10,6 +10,7 @@
 
 - 🎤 **Unified Input** – Text and audio in a single component
 - 🌊 **Real-time Waveform** – Audio visualization during recording  
+- 🌓 **Auto Light/Dark Mode** – Adapts to system preference or `.dark` class
 - 🎨 **Zero Config Styling** – Prepacked CSS, no Tailwind needed
 - 🔌 **Headless Mode** – Full control with render props
 - ⚡ **Framework Agnostic** – Next.js, Vite, Laravel, etc.
@@ -237,6 +238,41 @@ Includes dark theme with zinc/amber colors, waveform visualization, and smooth a
 ### Custom Styling (Tailwind)
 
 If using Tailwind, don't import the CSS file. The component uses Tailwind utility classes that will be processed by your build.
+
+### Light/Dark Mode
+
+The component **automatically adapts** to your app's theme:
+
+| Detection Method | Priority |
+|-----------------|:--------:|
+| `.dark` class on `<html>` | 1st |
+| `data-theme="dark"` attribute | 2nd |
+| `prefers-color-scheme` (system) | 3rd |
+
+**For Tailwind/Next.js apps** – add a `.dark` class to `<html>`:
+
+```tsx
+// app/layout.tsx
+'use client'
+import { useEffect } from 'react'
+
+export default function RootLayout({ children }) {
+  useEffect(() => {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    document.documentElement.classList.toggle('dark', isDark)
+    
+    // Listen for changes
+    window.matchMedia('(prefers-color-scheme: dark)')
+      .addEventListener('change', e => {
+        document.documentElement.classList.toggle('dark', e.matches)
+      })
+  }, [])
+
+  return <html lang="en" suppressHydrationWarning>...</html>
+}
+```
+
+**Without any config** – the component uses `prefers-color-scheme` automatically.
 
 ---
 
